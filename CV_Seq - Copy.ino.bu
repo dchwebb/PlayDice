@@ -1,0 +1,195 @@
+#define LED 13
+#define TEMPOPIN 9
+#define DACPIN 40
+#define CLOCKPIN 0
+
+int bpm = 120;                  // beats per minute of sequence (assume sequence runs in eighth notes for now)
+int seqStep = 0;                // increments each step of sequence
+elapsedMillis timeCounter = 0;  // millisecond counter to check if next sequence step is due
+int voltsMin = 0;               // Minimum allowed voltage amt per step
+int voltsMax = 5;               // Maximum allowed voltage amt
+int tempoPot = 512;				// Reading from tempo potentiometer for setting bpm
+
+//	Variables for managing clock input for externally setting tempo
+int clockInput = 0;				// Reading from clock input
+int clockThreshold = 500;		// Clock is converted to value between 0 and 1023 for 0-3.3V - set threshold to converted level
+int clockHigh = 0;				// Set to 1 if clock is above threshold
+unsigned long lastClockHigh = 0;// time in milliseconds since clock last high to check for bounce
+unsigned long clockHighTime = 0;// time in milliseconds of last clock signal
+unsigned long clockInterval = 0;// time in milliseconds of current clock interval
+int clockBPM = 0;				// BPM read from external clock
+int clockSignal = 0;			// 1 = External clock is sending currently sending pulses
+
+int btnUp = 12;                 // switch 12 used for parameter up push button
+int paramUp = 0;                // Parameter up button: 1 if pressed
+unsigned long lastParamUp = 0;  // time in milliseconds since Param button pressed to check for bounce
+int btnDn = 11;                 // switch 11 used for parameter down push button
+int paramDn = 0;                // Parameter down button: 1 if pressed
+unsigned long lastParamDn = 0;  // time in milliseconds since Param button pressed to check for bounce
+
+
+
+struct Step {
+	float volts;
+	int rand_amt; // from 0 to 10
+	int type;
+	int subdiv;
+};
+
+struct Sequence {
+	int type;     //  Sample and Hold, gated etc
+	int steps;    //  Number of steps in sequence
+	int portamento : 1;  // bit for portamento true false
+	struct Step Steps[8];
+};
+
+enum seqType { CV, GATE, PITCH };
+
+struct Sequence seq;
+
+void setup() {
+	pinMode(LED, OUTPUT);
+
+	analogWriteResolution(12);    // set resolution of DAC pin for outputting variable voltages
+	pinMode(btnUp, INPUT_PULLUP);
+	pinMode(btnDn, INPUT_PULLUP);
+
+	//  Setup sequence
+	seq.type = CV;
+	seq.steps = 8;
+	seq.Steps[0].volts = 5;
+	seq.Steps[1].volts = 4;
+	seq.Steps[1].rand_amt = 0;
+	seq.Steps[2].volts = 3;
+	seq.Steps[3].volts = 2;
+	seq.Steps[3].rand_amt = 0;
+	seq.Steps[4].volts = 0;
+	seq.Steps[5].volts = 4;
+	seq.Steps[6].volts = 3;
+	seq.Steps[7].volts = 2;
+
+}
+
+void loop() {
+	//	read value of clock signal if present and set bmp accordingly
+	clockInput = analogRead(CLOCKPIN);
+	if (clockInput > clockThreshold) {
+		if (clockHigh == 0 && millis() - lastClockHigh > 5) {
+			//	Eurorack clock fires 16 5V pulses per bar
+			clockInterval = millis() - clockHighTime;
+			clockBPM = (1 / (((double)(millis() - clockHighTime) / 1000) * 4)) * 60;
+			clockHighTime = millis();
+			clockSignal = 1;
+		}
+		clockHigh = 1;
+		lastClockHigh = millis();
+	}
+	else {
+		clockHigh = 0;
+	}
+	//	check if clock signal has fired in the last second
+	if (millis() - clockHighTime > 1000) {
+		clockSignal = 0;
+	}
+
+	//  read value of potentiometer to set speed
+	tempoPot = analogRead(TEMPOPIN);
+
+	// work out whether to get bpm from tempo potentiometer or clock signal (checking that we have recieved a recent clock signal)
+	if (clockBPM >= 40 && clockBPM < 300 && clockSignal) {
+		bpm = clockBPM;
+	} else	{
+		bpm = map(tempoPot, 0, 1023, 40, 300);        // map(value, fromLow, fromHigh, toLow, toHigh)
+		//Serial.println("Using pot");
+		Serial.print("clock input: ");
+		Serial.print(clockInput);
+		Serial.print("  clock bpm: ");
+		Serial.println(clockBPM);
+
+	}
+
+	// check if time to move to new step
+	int timeStep = 1000 / (((float) bpm / 60) * 2);
+
+	//	check if the sequence counter is ready to advance to the next step. Also if using external clock wait for pulse
+	if (timeCounter >= timeStep && millis() - clockHighTime - 10 >= clockInterval) {
+
+		Serial.println(clockInterval);
+
+		// calculate possible ranges of randomness to ensure we don't try and set a random value out of permitted range
+		float randLower = constrain(seq.Steps[seqStep].volts - ((double)seq.Steps[seqStep].rand_amt / 2), 0, 10);
+		float randUpper = constrain(seq.Steps[seqStep].volts + ((double)seq.Steps[seqStep].rand_amt / 2), 0, 10);
+		float randAmt = randLower + ((double)rand() / (double)RAND_MAX) * (randUpper - randLower);
+
+		if (0 && seq.Steps[seqStep].rand_amt > 0) {
+			Serial.print("volts: ");
+			Serial.println(seq.Steps[seqStep].volts);
+			Serial.print("rand: ");
+			Serial.println(seq.Steps[seqStep].rand_amt);
+
+			Serial.print("lower: ");
+			Serial.println(randLower);
+			Serial.print("upper: ");
+			Serial.println(randUpper);
+
+			Serial.print("result: ");
+			Serial.println(randAmt);
+			Serial.println("");
+		}
+
+		setCV(randAmt);
+
+		if (seqStep % 2 == 0) {
+			digitalWrite(LED, HIGH);
+		}
+		else {
+			digitalWrite(LED, LOW);
+		}
+
+		timeCounter = 0;
+		seqStep += 1;
+		if (seqStep == seq.steps) {
+			seqStep = 0;
+		}
+	}
+
+	//  Parameter button handler
+	if (digitalRead(12)) {
+		paramUp = 0;
+	}
+	else {
+		//  check if button has been pressed (previous state off and over x milliseconds since last on)
+		if (paramUp == 0 && millis() - lastParamUp > 10) {
+			if (seq.Steps[0].volts < voltsMax) {
+				seq.Steps[0].volts += 1;
+			}
+			Serial.println("Param up");
+		}
+		paramUp = 1;
+		lastParamUp = millis();
+	}
+	if (digitalRead(11)) {
+		paramDn = 0;
+	}
+	else {
+		//  check if button has been pressed (previous state off and over x milliseconds since last on)
+		if (paramDn == 0 && millis() - lastParamDn > 10) {
+			if (seq.Steps[0].volts > voltsMin) {
+				seq.Steps[0].volts -= 1;
+			}
+			Serial.println("Param down");
+		}
+		paramDn = 1;
+		lastParamDn = millis();
+	}
+}
+
+void setCV(float setVolt) {
+	//  DAC buffer takes values of 0 to 4095 relating to 0v to 3.3v
+	//  setVolt will be in range 0 - voltsMax (5 unless trying to do pitch which might need negative)
+	float dacVolt = setVolt / voltsMax * 4095;
+	analogWrite(DACPIN, (int)dacVolt);
+
+}
+
+
