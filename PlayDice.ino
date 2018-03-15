@@ -5,9 +5,10 @@
 #include "ClockHandler.h"
 #include "DisplayHandler.h"
 #include "Settings.h"
+#include <stdio.h>
 
 const boolean DEBUGCLOCK = 0;
-const boolean DEBUGSTEPS = 0;
+const boolean DEBUGSTEPS = 1;
 const boolean DEBUGFRAME = 0;
 
 int tempoPot = 512;				// Reading from tempo potentiometer for setting bpm
@@ -34,13 +35,21 @@ long oldEncPos = 0;
 
 //	declare variables
 struct Sequence seq;
-struct Patterns patterns;
+struct Patterns cv;
 Btn btns[] = { { STEPUP, 12 },{ STEPDN, 11 },{ ENCODER, 10 } };
 Encoder myEnc(ENCCLKPIN, ENCDATAPIN);
 ClockHandler clock(minBPM, maxBPM);
 DisplayHandler dispHandler;
 
-
+void initSequence(seqType seqtype, int seqNum, seqInitType initType, unsigned int numSteps = 8) {
+	cv.seq[seqNum].type = seqtype;
+	numSteps = (numSteps == 0 || numSteps > 8 ? 8 : numSteps);
+	cv.seq[seqNum].steps = numSteps;
+	for (int s = 0; s < 8; s++) {
+		cv.seq[seqNum].Steps[s].volts = (initType == INITBLANK ? 2.5 : ((double)rand() / (double)RAND_MAX) * 5);
+		cv.seq[seqNum].Steps[s].rand_amt = (initType == INITBLANK ? 0 : round(((double)rand() / (double)RAND_MAX) * 10));
+	}
+}
 
 void setup() {
 	pinMode(LED, OUTPUT);
@@ -52,25 +61,17 @@ void setup() {
 	}
 
 	//  Set up sequence
-	seq.type = CV;
-	seq.steps = 8;
-	seq.Steps[0].volts = 5;
-	seq.Steps[1].volts = 4;
-	seq.Steps[1].rand_amt = 3;
-	seq.Steps[2].volts = 1;
-	seq.Steps[3].volts = 2;
-	seq.Steps[3].rand_amt = 2;
-	seq.Steps[4].volts = 5;
-	seq.Steps[5].volts = 0;
-	seq.Steps[6].volts = 3;
-	seq.Steps[6].rand_amt = 10;
-	seq.Steps[7].volts = 2;
+	for (int p = 1; p <= 8; p++) {
+		initSequence(CV, p, INITRAND);
+	}
 
 	// Setup OLED
 	dispHandler.init();
 
 	// initialiase encoder
 	oldEncPos = round(myEnc.read() / 4);
+
+	Serial.println(sizeof(cv));
 }
 
 void loop() {
@@ -97,18 +98,18 @@ void loop() {
 
 		//	increment sequence step
 		seqStep += 1;
-		if (seqStep == seq.steps) {
+		if (seqStep == cv.seq[sequenceA].steps) {
 			seqStep = 0;
 		}
 
 		// calculate possible ranges of randomness to ensure we don't try and set a random value out of permitted range
-		float randLower = seq.Steps[seqStep].volts - ((double)seq.Steps[seqStep].rand_amt / 2);
-		float randUpper = seq.Steps[seqStep].volts + ((double)seq.Steps[seqStep].rand_amt / 2);
+		float randLower = cv.seq[sequenceA].Steps[seqStep].volts - ((double)cv.seq[sequenceA].Steps[seqStep].rand_amt / 2);
+		float randUpper = cv.seq[sequenceA].Steps[seqStep].volts + ((double)cv.seq[sequenceA].Steps[seqStep].rand_amt / 2);
 		randAmt = constrain(randLower + ((double)rand() / (double)RAND_MAX) * (randUpper - randLower), 0, voltsMax);
 
 		if (DEBUGSTEPS) {
 			Serial.print("S: "); Serial.println(seqStep);
-			Serial.print("V: "); Serial.print(seq.Steps[seqStep].volts); Serial.print(" R: "); Serial.println(seq.Steps[seqStep].rand_amt);
+			Serial.print("V: "); Serial.print(cv.seq[sequenceA].Steps[seqStep].volts); Serial.print(" R: "); Serial.println(cv.seq[sequenceA].Steps[seqStep].rand_amt);
 			Serial.print("L: "); Serial.print(randLower); Serial.print(" U: "); Serial.println(randUpper);
 			Serial.print("result: "); Serial.println(randAmt);
 		}
@@ -130,14 +131,14 @@ void loop() {
 			// change parameter
 
 			if (editMode == STEPV && editStep >= 0) {
-				seq.Steps[editStep].volts += newEncPos > oldEncPos ? 0.10 : -0.10;
-				seq.Steps[editStep].volts = constrain(seq.Steps[editStep].volts, 0, 5);
-				Serial.print("volts: ");  Serial.print(seq.Steps[editStep].volts);
+				cv.seq[sequenceA].Steps[editStep].volts += newEncPos > oldEncPos ? 0.10 : -0.10;
+				cv.seq[sequenceA].Steps[editStep].volts = constrain(cv.seq[sequenceA].Steps[editStep].volts, 0, 5);
+				Serial.print("volts: ");  Serial.print(cv.seq[sequenceA].Steps[editStep].volts);
 			}
 			if (editMode == STEPR && editStep >= 0) {
-				seq.Steps[editStep].rand_amt += newEncPos > oldEncPos ? 1 : -1;
-				seq.Steps[editStep].rand_amt = constrain(seq.Steps[editStep].rand_amt, 0, 10);
-				Serial.print("rand: ");  Serial.print(seq.Steps[editStep].rand_amt);
+				cv.seq[sequenceA].Steps[editStep].rand_amt += newEncPos > oldEncPos ? 1 : -1;
+				cv.seq[sequenceA].Steps[editStep].rand_amt = constrain(cv.seq[sequenceA].Steps[editStep].rand_amt, 0, 10);
+				Serial.print("rand: ");  Serial.print(cv.seq[sequenceA].Steps[editStep].rand_amt);
 			}
 			
 			//	sequence select mode

@@ -26,22 +26,21 @@ enum editType { STEPV, STEPR, STUTTER, SEQS, SEQMODE, PATTERN };		// STEPV allow
 // define structures to store sequence data
 struct Step {
 	float volts;
-	int rand_amt; // from 0 to 10
-	int type;
-	int subdiv;
+	unsigned int rand_amt : 4; // from 0 to 10
+	unsigned int subdiv : 5;
 };
 struct Sequence {
-	int type;		//  Sample and Hold, gated etc
-	int mode;		//	CURRENT - Loop current sequence, ALL - run through sequences
-	int steps;		//  Number of steps in sequence
-	int portamento : 1;  // bit for portamento true false
+	int type : 4;		//  Sample and Hold, gated etc
+	unsigned int mode : 4;		//	CURRENT - Loop current sequence, ALL - run through sequences
+	unsigned int steps : 4;		//  Number of steps in sequence
 	struct Step Steps[8];
 };
 struct Patterns {
-	struct Sequence Seq[8];
+	struct Sequence seq[8];
 };
 enum seqType { CV, GATE, PITCH };
 enum seqMode { LOOPCURRENT, LOOPALL };
+enum seqInitType { INITRAND, INITBLANK };
 
 
 //	state handling for momentary buttons

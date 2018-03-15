@@ -15,7 +15,7 @@ extern int sequenceA;
 extern int numSeqA; 
 extern int modeSeqA;
 extern long lastEncoder;
-
+extern Patterns cv;
 
 class DisplayHandler {
 public:
@@ -68,14 +68,14 @@ void DisplayHandler::updateDisplay() {
 	// Draw the sequence steps for pattern A (sample and hold)
 	for (int i = 0; i < 8; i++) {
 		int voltHPos = 17 + (i * 14);
-		int voltVPos = 27 - (seq.Steps[i].volts * 5);
+		int voltVPos = 27 - (cv.seq[sequenceA].Steps[i].volts * 5);
 
 		// Draw voltage line showing randomisation by using a dotted line with 3 or 4 dots if randomisation is greater or less than 5
-		if (seq.Steps[i].rand_amt > 0) {
+		if (cv.seq[sequenceA].Steps[i].rand_amt > 0) {
 			for (int j = 0; j < 12; j++) {
-				if (j % (seq.Steps[i].rand_amt > 5 ? 4 : 3) == 0) {
-					display.drawPixel(voltHPos + (seq.Steps[i].rand_amt > 5 ? 2 : 1) + j, voltVPos, WHITE);
-					display.drawPixel(voltHPos + (seq.Steps[i].rand_amt > 5 ? 2 : 1) + j, voltVPos + 1, WHITE);
+				if (j % (cv.seq[sequenceA].Steps[i].rand_amt > 5 ? 4 : 3) == 0) {
+					display.drawPixel(voltHPos + (cv.seq[sequenceA].Steps[i].rand_amt > 5 ? 2 : 1) + j, voltVPos, WHITE);
+					display.drawPixel(voltHPos + (cv.seq[sequenceA].Steps[i].rand_amt > 5 ? 2 : 1) + j, voltVPos + 1, WHITE);
 				}
 			}
 		}
@@ -113,7 +113,7 @@ void DisplayHandler::updateDisplay() {
 			display.setCursor(Panel1X, 43);
 			display.println("Volts");
 			display.setCursor(Panel1X, 53);
-			display.println(seq.Steps[editStep].volts);
+			display.println(cv.seq[sequenceA].Steps[editStep].volts);
 			if (editMode == STEPV) {
 				display.drawRect(0, 40, 36, 24, INVERSE);
 			}
@@ -121,7 +121,7 @@ void DisplayHandler::updateDisplay() {
 			display.setCursor(42, 43);
 			display.println("Random");
 			display.setCursor(42, 53);
-			display.println(seq.Steps[editStep].rand_amt);
+			display.println(cv.seq[sequenceA].Steps[editStep].rand_amt);
 			if (editMode == STEPR) {
 				display.drawRect(38, 40, 44, 24, INVERSE);
 			}
