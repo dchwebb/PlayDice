@@ -5,53 +5,74 @@
 #include "ClockHandler.h"
 #include "DisplayHandler.h"
 #include "Settings.h"
-#include <stdio.h>
+//#include <stdio.h>
 
 const boolean DEBUGCLOCK = 0;
-const boolean DEBUGSTEPS = 1;
+const boolean DEBUGSTEPS = 0;
 const boolean DEBUGFRAME = 0;
+const boolean DEBUGBTNS = 1;
 
-int tempoPot = 512;				// Reading from tempo potentiometer for setting bpm
-int bpm = 120;                  // beats per minute of sequence (assume sequence runs in eighth notes for now)
-int minBPM = 35;				// minimum BPM allowed for internal/external clock
-int maxBPM = 300;				// maximum BPM allowed for internal/external clock
+//#define ENCODER_DO_NOT_USE_INTERRUPTS
+
+uint16_t tempoPot = 512;		// Reading from tempo potentiometer for setting bpm
+uint16_t bpm = 120;				// beats per minute of sequence (assume sequence runs in eighth notes for now)
+uint16_t minBPM = 35;			// minimum BPM allowed for internal/external clock
+uint16_t maxBPM = 300;			// maximum BPM allowed for internal/external clock
 elapsedMillis timeCounter = 0;  // millisecond counter to check if next sequence step is due
 elapsedMillis debugCounter = 0;	// used to show debug data only every couple of ms
-long lastEncoder = 0;			// ms counter to show detailed edit parameters while editing or just after
-int voltsMin = 0;               // Minimum allowed voltage amt per step
-int voltsMax = 5;               // Maximum allowed voltage amt
+uint32_t lastEditing = 0;		// ms counter to show detailed edit parameters while editing or just after
+uint8_t voltsMin = 0;               // Minimum allowed voltage amt per step
+uint8_t voltsMax = 5;               // Maximum allowed voltage amt
 float randAmt = 0;				// Voltage of current step with randomisation applied
 
-int sequenceA = 1;				// store the sequence number for channel A (sample and hold)
-int numSeqA = 8;				// number of sequences in A section (S&H)
-int modeSeqA = 0;				// loop mode (LOOPCURRENT, LOOPALL)
-int numSeqB = 8;				// number of sequences in B section (gate)
-int sequenceB = 1;				// store the sequence number for channel B (gate)
-int seqStep = -1;               // increments each step of sequence
-int editStep = 0;				// store which step is currently selected for editing (-1 = choose seq, 0-7 are the sequence steps)
-int editMode = STEPV;					// enum editType
-int clockBPM = 0;				// BPM read from external clock
+uint8_t cvSeqNo = 1;			// store the sequence number for CV patterns
+uint8_t gateSeqNo = 1;			// store the sequence number for Gate patterns
+uint8_t numSeqA = 8;			// number of sequences in A section (S&H)
+seqMode modeSeqA = LOOPCURRENT;	// loop mode (LOOPCURRENT, LOOPALL)
+uint8_t numSeqB = 8;			// number of sequences in B section (gate)
+seqMode modeSeqB = LOOPCURRENT;	// loop mode (LOOPCURRENT, LOOPALL)
+int8_t seqStep = -1;			// increments each step of sequence
+int8_t editStep = 0;			// store which step is currently selected for editing (-1 = choose seq, 0-7 are the sequence steps)
+editType editMode = STEPV;		// enum editType - eg editing voltage, random amts etc
+seqType activeSeq = SEQGATE;	// whether the CV or Gate rows is active for editing
+uint16_t clockBPM = 0;			// BPM read from external clock
 long oldEncPos = 0;
+boolean bothButtons;
 
 //	declare variables
-struct Sequence seq;
-struct Patterns cv;
+struct CvPatterns cv;
+struct GatePatterns gate;
 Btn btns[] = { { STEPUP, 12 },{ STEPDN, 11 },{ ENCODER, 10 } };
 Encoder myEnc(ENCCLKPIN, ENCDATAPIN);
 ClockHandler clock(minBPM, maxBPM);
 DisplayHandler dispHandler;
 
-void initSequence(seqType seqtype, int seqNum, seqInitType initType, unsigned int numSteps = 8) {
-	cv.seq[seqNum].type = seqtype;
+void initCvSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
 	numSteps = (numSteps == 0 || numSteps > 8 ? 8 : numSteps);
 	cv.seq[seqNum].steps = numSteps;
 	for (int s = 0; s < 8; s++) {
-		cv.seq[seqNum].Steps[s].volts = (initType == INITBLANK ? 2.5 : ((double)rand() / (double)RAND_MAX) * 5);
-		cv.seq[seqNum].Steps[s].rand_amt = (initType == INITBLANK ? 0 : round(((double)rand() / (double)RAND_MAX) * 10));
+		cv.seq[seqNum].Steps[s].volts = (initType == INITBLANK ? 2.5 : getRand() * 5);
+		cv.seq[seqNum].Steps[s].rand_amt = (initType == INITBLANK ? 0 : round((getRand() * 10)));
+		cv.seq[seqNum].Steps[s].stutter = (initType == INITBLANK ? 0 : round(getRand()));
+	}
+}
+void initGateSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
+	numSteps = (numSteps == 0 || numSteps > 8 ? 8 : numSteps);
+	gate.seq[seqNum].steps = numSteps;
+	for (int s = 0; s < 8; s++) {
+		gate.seq[seqNum].Steps[s].on = (initType == INITBLANK ? 0 : round(getRand()));
+		gate.seq[seqNum].Steps[s].rand_amt = (initType == INITBLANK ? 0 : round(getRand()));
+		gate.seq[seqNum].Steps[s].stutter = (initType == INITBLANK ? 0 : round(getRand()));
 	}
 }
 
+double getRand() {
+	return (double)rand() / (double)RAND_MAX;
+}
+
+
 void setup() {
+
 	pinMode(LED, OUTPUT);
 
 	analogWriteResolution(12);    // set resolution of DAC pin for outputting variable voltages
@@ -60,18 +81,21 @@ void setup() {
 		pinMode(btns[b].pin, INPUT_PULLUP);
 	}
 
-	//  Set up sequence
+	//  Set up CV and Gate patterns
 	for (int p = 1; p <= 8; p++) {
-		initSequence(CV, p, INITRAND);
+		initCvSequence(p, INITRAND);
+		initGateSequence(p, INITRAND);
 	}
 
 	// Setup OLED
 	dispHandler.init();
 
+	//Serial.print("int: ");  Serial.println(sizeof(minBPM));
+
 	// initialiase encoder
 	oldEncPos = round(myEnc.read() / 4);
-
-	Serial.println(sizeof(cv));
+	lastEditing = 0;		// this somehow gets set to '7' on startup - not sure how at this stage
+	editMode = STEPV;		// this somehow gets set to '1' on startup
 }
 
 void loop() {
@@ -92,24 +116,30 @@ void loop() {
 		bpm = map(tempoPot, 0, 1023, minBPM, maxBPM);        // map(value, fromLow, fromHigh, toLow, toHigh)
 	}
 
+
 	//	check if the sequence counter is ready to advance to the next step. Also if using external clock wait for pulse
-	unsigned int timeStep = 1000 / (((float)bpm / 60) * 2);		// get length of step based on bpm
+	uint16_t timeStep = 1000 / (((float)bpm / 60) * 2);		// get length of step based on bpm
 	if (timeCounter >= timeStep && (!clock.hasSignal() || millis() - clock.clockHighTime < 10)) {
 
 		//	increment sequence step
 		seqStep += 1;
-		if (seqStep == cv.seq[sequenceA].steps) {
+		if (seqStep == cv.seq[cvSeqNo].steps) {
 			seqStep = 0;
 		}
 
 		// calculate possible ranges of randomness to ensure we don't try and set a random value out of permitted range
-		float randLower = cv.seq[sequenceA].Steps[seqStep].volts - ((double)cv.seq[sequenceA].Steps[seqStep].rand_amt / 2);
-		float randUpper = cv.seq[sequenceA].Steps[seqStep].volts + ((double)cv.seq[sequenceA].Steps[seqStep].rand_amt / 2);
-		randAmt = constrain(randLower + ((double)rand() / (double)RAND_MAX) * (randUpper - randLower), 0, voltsMax);
+
+		/*float randLower = cv.seq[cvSeqNo].Steps[seqStep].volts - ((double)cv.seq[cvSeqNo].Steps[seqStep].rand_amt / 2);
+		float randUpper = cv.seq[cvSeqNo].Steps[seqStep].volts + ((double)cv.seq[cvSeqNo].Steps[seqStep].rand_amt / 2);
+		randAmt = constrain(randLower + (getRand() * (randUpper - randLower)), 0, voltsMax);*/
+
+		float randLower = getRandLimit(cv.seq[cvSeqNo].Steps[seqStep], LOWER);
+		float randUpper = getRandLimit(cv.seq[cvSeqNo].Steps[seqStep], UPPER);
+		randAmt = constrain(randLower + (getRand() * (randUpper - randLower)), 0, voltsMax);
 
 		if (DEBUGSTEPS) {
 			Serial.print("S: "); Serial.println(seqStep);
-			Serial.print("V: "); Serial.print(cv.seq[sequenceA].Steps[seqStep].volts); Serial.print(" R: "); Serial.println(cv.seq[sequenceA].Steps[seqStep].rand_amt);
+			Serial.print("V: "); Serial.print(cv.seq[cvSeqNo].Steps[seqStep].volts); Serial.print(" R: "); Serial.println(cv.seq[cvSeqNo].Steps[seqStep].rand_amt);
 			Serial.print("L: "); Serial.print(randLower); Serial.print(" U: "); Serial.println(randUpper);
 			Serial.print("result: "); Serial.println(randAmt);
 		}
@@ -130,38 +160,57 @@ void loop() {
 		if (round(newEncPos / 4) != round(oldEncPos / 4)) {
 			// change parameter
 
-			if (editMode == STEPV && editStep >= 0) {
-				cv.seq[sequenceA].Steps[editStep].volts += newEncPos > oldEncPos ? 0.10 : -0.10;
-				cv.seq[sequenceA].Steps[editStep].volts = constrain(cv.seq[sequenceA].Steps[editStep].volts, 0, 5);
-				Serial.print("volts: ");  Serial.print(cv.seq[sequenceA].Steps[editStep].volts);
+			if (editStep >= 0) {
+				if (activeSeq == SEQCV) {
+					if (editMode == STEPV) {
+						cv.seq[cvSeqNo].Steps[editStep].volts += newEncPos > oldEncPos ? 0.10 : -0.10;
+						cv.seq[cvSeqNo].Steps[editStep].volts = constrain(cv.seq[cvSeqNo].Steps[editStep].volts, 0, 5);
+						Serial.print("volts: ");  Serial.print(cv.seq[cvSeqNo].Steps[editStep].volts);
+					}
+					if (editMode == STEPR) {
+						cv.seq[cvSeqNo].Steps[editStep].rand_amt += newEncPos > oldEncPos ? 1 : -1;
+						cv.seq[cvSeqNo].Steps[editStep].rand_amt = constrain(cv.seq[cvSeqNo].Steps[editStep].rand_amt, (uint16_t)0, (uint16_t)10);
+						Serial.print("rand: ");  Serial.print(cv.seq[cvSeqNo].Steps[editStep].rand_amt);
+					}
+				}
+				else {
+					if (editMode == STEPV) {
+						gate.seq[gateSeqNo].Steps[editStep].on = !gate.seq[gateSeqNo].Steps[editStep].on;
+						Serial.print("on: ");  Serial.print(gate.seq[gateSeqNo].Steps[editStep].on);
+					}
+					if (editMode == STEPR) {
+						gate.seq[gateSeqNo].Steps[editStep].rand_amt += newEncPos > oldEncPos ? 1 : -1;
+						gate.seq[gateSeqNo].Steps[editStep].rand_amt = constrain(gate.seq[gateSeqNo].Steps[editStep].rand_amt, (uint16_t)0, (uint16_t)10);
+						Serial.print("rand: ");  Serial.print(gate.seq[gateSeqNo].Steps[editStep].rand_amt);
+					}
+				}
 			}
-			if (editMode == STEPR && editStep >= 0) {
-				cv.seq[sequenceA].Steps[editStep].rand_amt += newEncPos > oldEncPos ? 1 : -1;
-				cv.seq[sequenceA].Steps[editStep].rand_amt = constrain(cv.seq[sequenceA].Steps[editStep].rand_amt, 0, 10);
-				Serial.print("rand: ");  Serial.print(cv.seq[sequenceA].Steps[editStep].rand_amt);
-			}
-			
-			//	sequence select mode
-			if (editMode == PATTERN && editStep == -1) {
-				sequenceA += newEncPos > oldEncPos ? 1 : -1;
-				sequenceA = sequenceA < 1 ? 8 : (sequenceA > 8 ? 1 : sequenceA);
-				Serial.print("pattern: ");  Serial.print(sequenceA);
-			}
-			if (editMode == SEQS && editStep == -1) {
-				numSeqA += newEncPos > oldEncPos ? 1 : -1;
-				numSeqA = constrain(numSeqA, 1,  8);
-				Serial.print("seqs: ");  Serial.print(numSeqA);
-			}
+			else {
 
-			if (editMode == SEQMODE && editStep == -1) {
-				modeSeqA = !modeSeqA;
-				Serial.print("mode: ");  Serial.print(modeSeqA);
+				//	sequence select mode
+				if (editMode == PATTERN) {
+					//uint8_t * pSeq;
+					uint8_t * pSeq = activeSeq == SEQCV ? &cvSeqNo : &gateSeqNo;
+					*pSeq += newEncPos > oldEncPos ? 1 : -1;
+					*pSeq = *pSeq < 1 ? 8 : (*pSeq > 8 ? 1 : *pSeq);
+					if (DEBUGBTNS) Serial.print("cv no: ");  Serial.print(cvSeqNo); Serial.print("gate: ");  Serial.print(gateSeqNo);
+				}
+				if (editMode == SEQS) {
+					numSeqA += newEncPos > oldEncPos ? 1 : -1;
+					numSeqA = constrain(numSeqA, 1, 8);
+					if (DEBUGBTNS) Serial.print("seqs: ");  Serial.print(numSeqA);
+				}
+
+				if (editMode == SEQMODE) {
+					modeSeqA = modeSeqA == LOOPCURRENT ? LOOPALL : LOOPCURRENT;
+					if (DEBUGBTNS) Serial.print("mode: ");  Serial.print(modeSeqA);
+				}
 			}
 		}
 
 		oldEncPos = newEncPos;
-		Serial.print("  Encoder: ");  Serial.println(newEncPos);
-		lastEncoder = millis();
+		if (DEBUGBTNS) Serial.print("  Encoder: ");  Serial.println(newEncPos);
+		lastEditing = millis();
 		dispHandler.setDisplayRefresh(REFRESHFULL);
 	}
 
@@ -181,31 +230,42 @@ void loop() {
 					// check editing mode is valid for selected step type
 					checkEditState();
 
-					Serial.println("Param up/dn");
+					if (DEBUGBTNS) {
+						if (btns[STEPUP].pressed) Serial.println("Step up");
+						if (btns[STEPDN].pressed) Serial.println("Step dn");
+					}
 				}
 				if (btns[b].name == ENCODER) {
-					switch (editMode) {
-					case STEPV:
-						editMode = STEPR;
-						break;
-					case STEPR:
-						editMode = STUTTER;
-						break;
-					case STUTTER:
-						editMode = STEPV;
-						break;
-					case PATTERN:
-						editMode = SEQMODE;
-						break;
-					case SEQMODE:
-						editMode = SEQS;
-						break;
-					case SEQS:
-						editMode = PATTERN;
-						break;
+					if (checkEditing()) {
+						switch (editMode) {
+						case STEPV:
+							editMode = STEPR;
+							break;
+						case STEPR:
+							editMode = STUTTER;
+							break;
+						case STUTTER:
+							editMode = STEPV;
+							break;
+						case PATTERN:
+							editMode = SEQMODE;
+							break;
+						case SEQMODE:
+							editMode = SEQS;
+							break;
+						case SEQS:
+							editMode = PATTERN;
+							break;
+						}
 					}
-					lastEncoder = millis();
-					Serial.println("Encoder button");
+					else {
+						editMode = editStep == -1 ? PATTERN : STEPV;
+					}
+
+
+					lastEditing = millis();
+					if (DEBUGBTNS)
+						Serial.println("Encoder button");
 				}
 
 			}
@@ -214,7 +274,22 @@ void loop() {
 		}
 	}
 
-	if (dispHandler.displayRefresh > 0 && millis() > 1000) {
+	//	if both buttons pressed at the same time switch between gate and cv patterns
+	if (btns[STEPUP].pressed && btns[STEPDN].pressed) {
+		if (bothButtons == 0) {
+			if (DEBUGBTNS)
+				Serial.println(" BOTH");
+			bothButtons = 1;
+			activeSeq = (activeSeq == SEQGATE ? SEQCV : SEQGATE);
+			lastEditing = 0;
+		}
+	}
+	else {
+		bothButtons = 0;
+	}
+
+	//	Trigger a display refresh if the clock has just received a signal or not received one for over a second (to avoid display interfering with clock reading)
+	if (dispHandler.displayRefresh > 0 && millis() > 1000 && (millis() - clock.clockHighTime < 10 || millis() - clock.clockHighTime > 1000)) {
 		dispHandler.updateDisplay();
 	}
 
@@ -230,6 +305,11 @@ void setCV(float setVolt) {
 }
 
 
+boolean checkEditing() {
+	// check if recent encoder activity
+	return (lastEditing > 1 && millis() - lastEditing < 5000);
+}
+
 void checkEditState() {
 	// check editing mode is valid for selected step type
 	if (editStep == -1 && (editMode == STEPV || editMode == STEPR || editMode == STUTTER)) {
@@ -239,3 +319,13 @@ void checkEditState() {
 		editMode = STEPV;
 	}
 }
+
+float getRandLimit(CvStep s, rndType getUpper) {
+	if (getUpper == UPPER) {
+		return s.volts + ((double)s.rand_amt / 2);
+	}
+	else {
+		return s.volts - ((double)s.rand_amt / 2);
+	}
+}
+

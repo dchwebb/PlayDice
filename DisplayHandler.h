@@ -2,20 +2,29 @@
 #include <Adafruit_GFX.h>
 #include "Adafruit_SSD1306.h"
 #include "Settings.h"
+#include "WString.h"
 
 extern const boolean DEBUGFRAME;
 
-extern int bpm;
-extern Sequence seq;
-extern int seqStep;
-extern int editStep;
-extern int editMode;
+extern uint16_t bpm;
+extern int8_t seqStep;
+extern int8_t editStep;
+extern editType editMode;
 extern float randAmt;
-extern int sequenceA;
-extern int numSeqA; 
-extern int modeSeqA;
-extern long lastEncoder;
-extern Patterns cv;
+extern uint8_t cvSeqNo;
+extern uint8_t gateSeqNo;
+extern uint8_t numSeqA;
+extern seqMode modeSeqA;
+extern uint8_t numSeqB;
+extern seqMode modeSeqB;
+extern seqType activeSeq;
+extern uint32_t lastEditing;
+extern CvPatterns cv;
+extern GatePatterns gate;
+
+extern float getRandLimit(CvStep s, rndType getUpper);
+extern boolean checkEditing();
+extern ClockHandler clock;
 
 class DisplayHandler {
 public:
@@ -26,7 +35,13 @@ public:
 	void setDisplayRefresh(int requestedRefresh);
 	void updateDisplay();
 	void init();
+	int cvVertPos(float voltage);
+	void drawDottedVLine(int16_t x, int16_t y, int16_t h, uint16_t color);
+	void drawParam(const char s[], float v, int16_t x, int16_t y, uint16_t w, boolean selected);
+	void drawParam(const char s[], String v, int16_t x, int16_t y, uint16_t w, boolean selected);
 	Adafruit_SSD1306 display;
+private:
+	long clockSignal;
 };
 
 
@@ -49,123 +64,120 @@ void DisplayHandler::updateDisplay() {
 		Serial.print("Frame start: "); Serial.print(millis());
 	}
 
+	boolean editing = checkEditing();		// set to true if currently editing to show detailed parameters
+
 	display.clearDisplay();
 
-	//	Write the sequence number for sequence A
-	display.setCursor(0, 0); 
-	display.print("cv");
-	display.setCursor(1, 11);
-	display.setTextSize(2);
-	display.print(sequenceA);
+	//	Write the sequence number for CV and gate sequence
 	display.setTextSize(1);
-
-	//	Draw arrow beneath sequence number if selected for editing
-	if (editStep == -1) {
-		display.drawLine(4, 34, 6, 32, WHITE);
-		display.drawLine(6, 32, 8, 34, WHITE);
+	if (!editing || activeSeq == SEQCV) {
+		display.setCursor(0, 0);
+		display.print("cv");
+	}
+	if (!editing || activeSeq == SEQGATE) {
+		display.setCursor(0, 39);
+		display.print("Gt");
 	}
 
-	// Draw the sequence steps for pattern A (sample and hold)
+	display.setTextSize(2);
+	if (!editing || activeSeq == SEQCV) {
+		display.setCursor(1, 11);
+		display.print(cvSeqNo);
+	}
+	if (!editing || activeSeq == SEQGATE) {
+		display.setCursor(1, 50);
+		display.print(gateSeqNo);
+	}
+	display.setTextSize(1);
+
+	// Draw a dot if we have just received a clock high signal
+	if (millis() - clock.clockHighTime < 20) {
+		display.drawPixel(127, 0, WHITE);
+	}
+
+	//	Draw arrow beneath/above sequence number if selected for editing
+	if (editStep == -1) {
+		display.drawLine(4, activeSeq == SEQCV ? 34 : 32, 6, activeSeq == SEQCV ? 32 : 34, WHITE);
+		display.drawLine(6, activeSeq == SEQCV ? 32 : 34, 8, activeSeq == SEQCV ? 34 : 32, WHITE);
+	}
+
+	// Draw the sequence steps for CV and gate sequence
 	for (int i = 0; i < 8; i++) {
 		int voltHPos = 17 + (i * 14);
-		int voltVPos = 27 - (cv.seq[sequenceA].Steps[i].volts * 5);
+		//int voltVPos = 27 - round(cv.seq[cvSeqNo].Steps[i].volts * 5);
+		int voltVPos = cvVertPos(cv.seq[cvSeqNo].Steps[i].volts);
 
-		// Draw voltage line showing randomisation by using a dotted line with 3 or 4 dots if randomisation is greater or less than 5
-		if (cv.seq[sequenceA].Steps[i].rand_amt > 0) {
-			for (int j = 0; j < 12; j++) {
-				if (j % (cv.seq[sequenceA].Steps[i].rand_amt > 5 ? 4 : 3) == 0) {
-					display.drawPixel(voltHPos + (cv.seq[sequenceA].Steps[i].rand_amt > 5 ? 2 : 1) + j, voltVPos, WHITE);
-					display.drawPixel(voltHPos + (cv.seq[sequenceA].Steps[i].rand_amt > 5 ? 2 : 1) + j, voltVPos + 1, WHITE);
-				}
+		// Draw CV pattern
+		if (!editing || activeSeq == SEQCV) {
+			// Draw voltage line showing randomisation by using a vertical dotted line
+			display.fillRect(voltHPos + 2, voltVPos, 8, 2, WHITE);
+
+			if (cv.seq[cvSeqNo].Steps[i].rand_amt > 0) {
+				float randLower = constrain(getRandLimit(cv.seq[cvSeqNo].Steps[i], LOWER), 0, 5);
+				float randUpper = constrain(getRandLimit(cv.seq[cvSeqNo].Steps[i], UPPER), 0, 5);
+				drawDottedVLine(voltHPos, 2 + cvVertPos(randUpper), 1 + cvVertPos(randLower) - cvVertPos(randUpper), WHITE);
 			}
-		}
-		else {
-			display.drawFastHLine(voltHPos, voltVPos, 13, WHITE);
-			display.drawFastHLine(voltHPos, voltVPos + 1, 13, WHITE);
+			// draw amount of voltage selected after randomisation applied
+			if (seqStep == i) {
+				display.fillRect(voltHPos, round(26 - (randAmt * 5)), 13, 4, WHITE);
+			}		
 		}
 
-		// draw amount of voltage selected after randomisation applied
-		if (seqStep == i) {
-			// Draw voltage line
-			display.fillRect(voltHPos, round(26 - (randAmt * 5)), 13, 4, WHITE);
+		// Draw gate pattern 
+		if (!editing || activeSeq == SEQGATE) {
+			if (gate.seq[gateSeqNo].Steps[i].on) {
+				display.fillRect(voltHPos + 4, 50, 6, 14, WHITE);
+			}
+			else {
+				display.fillRect(voltHPos + 4, 63, 6, 1, WHITE);
+			}
 		}
 
 		//	Draw arrow beneath step selected for editing
 		if (editStep == i) {
-			display.drawLine(voltHPos + 4, 34, voltHPos + 6, 32, WHITE);
-			display.drawLine(voltHPos + 6, 32, voltHPos + 8, 34, WHITE);
-
-			// draw box around current step whilst editing
-			if (millis() - lastEncoder < 500) {
-				
-				//display.drawFastVLine(voltHPos - 1, 0, 30, WHITE);
-				//display.drawRect(voltHPos - 1, 0, 15, 30, INVERSE);
-			}
+			display.drawLine(voltHPos + 4, activeSeq == SEQCV ? 34 : 32, voltHPos + 6, activeSeq == SEQCV ? 32 : 34, WHITE);
+			display.drawLine(voltHPos + 6, activeSeq == SEQCV ? 32 : 34, voltHPos + 8, activeSeq == SEQCV ? 34 : 32, WHITE);
 		}
 
 	}
 
 	//	if currently or recently editing show values in bottom area of screen
-	if (lastEncoder > 0 && millis() - lastEncoder < 5000) {
-		const int Panel1X = 4;
-
-		if (editMode == STEPR || editMode == STEPV || editMode == STUTTER) {
-			display.setCursor(Panel1X, 43);
-			display.println("Volts");
-			display.setCursor(Panel1X, 53);
-			display.println(cv.seq[sequenceA].Steps[editStep].volts);
-			if (editMode == STEPV) {
-				display.drawRect(0, 40, 36, 24, INVERSE);
+	if (editing) {
+		if (activeSeq == SEQGATE) {
+			if (editMode == STEPR || editMode == STEPV || editMode == STUTTER) {
+				drawParam("Gate", String(gate.seq[gateSeqNo].Steps[editStep].on ? "ON" : "OFF"), 0, 0, 36, editMode == STEPV);
+				drawParam("Random", String(gate.seq[cvSeqNo].Steps[editStep].rand_amt), 38, 0, 44, editMode == STEPR);
+				drawParam("Stutter", String(gate.seq[cvSeqNo].Steps[editStep].stutter), 81, 0, 47, editMode == STUTTER);
 			}
 
-			display.setCursor(42, 43);
-			display.println("Random");
-			display.setCursor(42, 53);
-			display.println(cv.seq[sequenceA].Steps[editStep].rand_amt);
-			if (editMode == STEPR) {
-				display.drawRect(38, 40, 44, 24, INVERSE);
-			}
-
-			display.setCursor(85, 43);
-			display.println("Stutter");
-			display.setCursor(85, 53);
-			display.println(modeSeqA);
-			if (editMode == STUTTER) {
-				display.drawRect(81, 40, 47, 24, INVERSE);
-			}
-
-		}
-
-		if (editMode == PATTERN || editMode == SEQS || editMode == SEQMODE) {
-			display.setCursor(4, 43);
-			display.println("Pattern");
-			display.setCursor(4, 53);
-			display.println(sequenceA);
-			if (editMode == PATTERN) {
-				display.drawRect(0, 40, 49, 24, INVERSE);
-			}
-
-			display.setCursor(56, 43);
-			display.println("Loop");
-			display.setCursor(56, 53);
-			display.println(modeSeqA == LOOPCURRENT ? "ONE" : "ALL");
-			if (editMode == SEQMODE) {
-				display.drawRect(52, 40, 34, 24, INVERSE);
-			}
-
-			display.setCursor(94, 43);
-			display.println("Loops");
-			display.setCursor(94, 53);
-			display.println(numSeqA);
-			if (editMode == SEQS) {
-				display.drawRect(90, 40, 38, 24, INVERSE);
+			if (editMode == PATTERN || editMode == SEQS || editMode == SEQMODE) {
+				drawParam("Pattern", String(gateSeqNo), 0, 0, 49, editMode == PATTERN);
+				drawParam("Loop", String(modeSeqB == LOOPCURRENT ? "ONE" : "ALL"), 52, 0, 34, editMode == SEQMODE);
+				drawParam("Loops", String(numSeqB), 90, 0, 34, editMode == SEQS);
 			}
 		}
-	} else {
+
+		if (activeSeq == SEQCV) {
+			if (editMode == STEPR || editMode == STEPV || editMode == STUTTER) {
+				drawParam("Volts", String(cv.seq[cvSeqNo].Steps[editStep].volts), 0, 40, 36, editMode == STEPV);
+				drawParam("Random", String(cv.seq[cvSeqNo].Steps[editStep].rand_amt), 38, 40, 44, editMode == STEPR);
+				drawParam("Stutter", String(cv.seq[cvSeqNo].Steps[editStep].stutter), 81, 40, 47, editMode == STUTTER);
+			}
+
+			if (editMode == PATTERN || editMode == SEQS || editMode == SEQMODE) {
+				drawParam("Pattern", String(cvSeqNo), 0, 40, 49, editMode == PATTERN);
+				drawParam("Loop", String(modeSeqA == LOOPCURRENT ? "ONE" : "ALL"), 52, 40, 34, editMode == SEQMODE);
+				drawParam("Loops", String(numSeqA), 90, 40, 34, editMode == SEQS);
+			}
+		}
+	}
+	else {
+		/*
 		display.setCursor(91, 43);
 		display.print("e: "); display.print(editMode);
 		display.setCursor(91, 53);
 		display.print("b: "); display.println(bpm);
+		*/
 	}
 	display.display();
 	displayRefresh = REFRESHOFF;
@@ -174,6 +186,50 @@ void DisplayHandler::updateDisplay() {
 		Serial.print("  Frame end: "); Serial.println(millis());
 	}
 }
+
+
+
+//	returns the vertical position of a voltage line on the cv channel display
+int DisplayHandler::cvVertPos(float voltage) {
+	return 27 - round(voltage * 5);
+}
+
+void DisplayHandler::drawDottedVLine(int16_t x, int16_t y, int16_t h, uint16_t color) {
+	for (int d = y; d < y + h; d += 3) {
+		display.drawPixel(x, d, color);
+	}
+}
+
+void DisplayHandler::drawParam(const char s[], String v, int16_t x, int16_t y, uint16_t w, boolean selected) {
+	display.setCursor(x + 4, y + 3);
+	display.println(s);
+	display.setCursor(x + 4, y + 13);
+	display.println(v);
+	if (selected) {
+		display.drawRect(x, y, w, 24, INVERSE);
+	}
+}
+
+//void DisplayHandler::drawParam(const char s[], float v, int16_t x, int16_t y, uint16_t w, boolean selected) {
+//	display.setCursor(x + 4, y + 3);
+//	display.println(s);
+//	display.setCursor(x + 4, y + 13);
+//	display.println(v);
+//	if (selected) {
+//		display.drawRect(x, y, w, 24, INVERSE);
+//	}
+//
+//}
+
+//void DisplayHandler::drawParam(const char s[], const char v[], int16_t x, int16_t y, uint16_t w, boolean selected) {
+//	display.setCursor(x + 4, y + 3);
+//	display.println(s);
+//	display.setCursor(x + 4, y + 13);
+//	display.println(v);
+//	if (selected) {
+//		display.drawRect(x, y, w, 24, INVERSE);
+//	}
+//}
 
 void DisplayHandler::init() {
 	const unsigned char diceBitmap[] = {
@@ -242,7 +298,7 @@ void DisplayHandler::init() {
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	};
-	
+
 	display.begin(SSD1306_SWITCHCAPVCC, 0x3C);  // initialize with the I2C addr 0x3C (for the 128x64)
 	display.dim(true);
 	display.clearDisplay();

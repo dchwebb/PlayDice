@@ -24,24 +24,37 @@ enum refreshType { REFRESHOFF, REFRESHFULL, REFRESHTOP, REFRESHBOTTOM };
 enum editType { STEPV, STEPR, STUTTER, SEQS, SEQMODE, PATTERN };		// STEPV allows deep editing of voltage; STEPR - editing random level; STUTTER - choose stutter speed, PATTERN - choose pattern
 
 // define structures to store sequence data
-struct Step {
+struct CvStep {
 	float volts;
-	unsigned int rand_amt : 4; // from 0 to 10
-	unsigned int subdiv : 5;
+	uint16_t rand_amt : 4; // from 0 to 10
+	uint16_t stutter : 5;
 };
-struct Sequence {
-	int type : 4;		//  Sample and Hold, gated etc
-	unsigned int mode : 4;		//	CURRENT - Loop current sequence, ALL - run through sequences
-	unsigned int steps : 4;		//  Number of steps in sequence
-	struct Step Steps[8];
+struct GateStep {
+	uint16_t on : 1;
+	uint16_t rand_amt : 4; // from 0 to 10
+	uint16_t stutter : 5;
 };
-struct Patterns {
-	struct Sequence seq[8];
+struct CvSequence {
+	uint16_t mode : 4;		//	CURRENT - Loop current sequence, ALL - run through sequences
+	uint16_t steps : 4;		//  Number of steps in sequence
+	struct CvStep Steps[8];
 };
-enum seqType { CV, GATE, PITCH };
+struct GateSequence {
+	uint16_t mode : 4;		//	CURRENT - Loop current sequence, ALL - run through sequences
+	uint16_t steps : 4;		//  Number of steps in sequence
+	struct GateStep Steps[8];
+};
+
+struct CvPatterns {
+	struct CvSequence seq[8];
+};
+struct GatePatterns {
+	struct GateSequence seq[8];
+};
 enum seqMode { LOOPCURRENT, LOOPALL };
 enum seqInitType { INITRAND, INITBLANK };
-
+enum seqType { SEQCV, SEQGATE };
+enum rndType { UPPER, LOWER };
 
 //	state handling for momentary buttons
 struct Btn {
