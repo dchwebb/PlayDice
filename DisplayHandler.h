@@ -10,7 +10,8 @@ extern uint16_t bpm;
 extern int8_t seqStep;
 extern int8_t editStep;
 extern editType editMode;
-extern float randAmt;
+extern float cvRandVal;
+extern boolean gateRandVal;
 extern uint8_t cvSeqNo;
 extern uint8_t gateSeqNo;
 extern uint8_t numSeqA;
@@ -91,7 +92,7 @@ void DisplayHandler::updateDisplay() {
 	display.setTextSize(1);
 
 	// Draw a dot if we have just received a clock high signal
-	if (millis() - clock.clockHighTime < 20) {
+	if (seqStep % 2 == 0 && millis() - clock.clockHighTime < 20) {
 		display.drawPixel(127, 0, WHITE);
 	}
 
@@ -119,18 +120,36 @@ void DisplayHandler::updateDisplay() {
 			}
 			// draw amount of voltage selected after randomisation applied
 			if (seqStep == i) {
-				display.fillRect(voltHPos, round(26 - (randAmt * 5)), 13, 4, WHITE);
+				display.fillRect(voltHPos, round(26 - (cvRandVal * 5)), 13, 4, WHITE);
 			}		
 		}
 
 		// Draw gate pattern 
 		if (!editing || activeSeq == SEQGATE) {
 			if (gate.seq[gateSeqNo].Steps[i].on) {
-				display.fillRect(voltHPos + 4, 50, 6, 14, WHITE);
+				if (seqStep == i && !gateRandVal) {
+					display.drawRect(voltHPos + 4, 50, 6, 14, WHITE);
+				}
+				else {
+					display.fillRect(voltHPos + 4, 50, 6, 14, WHITE);
+				}
 			}
 			else {
 				display.fillRect(voltHPos + 4, 63, 6, 1, WHITE);
 			}
+			// draw current step - larger block if 'on' larger base if 'off'
+			if (seqStep == i) {
+				if (gateRandVal) {
+					display.fillRect(voltHPos + 3, 45, 8, 29, WHITE);
+				}
+				else {
+					display.fillRect(voltHPos + 3, 62, 8, 2, WHITE);
+				}
+			}
+
+			// draw line showing random amount
+			uint8_t rndTop = round(gate.seq[gateSeqNo].Steps[i].rand_amt * (float)(24 / 10));
+			drawDottedVLine(voltHPos, 64 - rndTop, rndTop, WHITE);
 		}
 
 		//	Draw arrow beneath step selected for editing
