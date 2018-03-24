@@ -5,6 +5,8 @@
 #include "ClockHandler.h"
 #include "DisplayHandler.h"
 #include "Settings.h"
+//#include <vector>
+#include <algorithm>
 //#include <stdio.h>
 
 const boolean DEBUGCLOCK = 0;
@@ -43,6 +45,7 @@ boolean bothButtons;
 struct CvPatterns cv;
 struct GatePatterns gate;
 Btn btns[] = { { STEPUP, 12 },{ STEPDN, 11 },{ ENCODER, 10 } };
+int stutterArray[] = { 0, 2, 3, 4, 6, 8 };
 Encoder myEnc(ENCCLKPIN, ENCDATAPIN);
 ClockHandler clock(minBPM, maxBPM);
 DisplayHandler dispHandler;
@@ -53,7 +56,7 @@ void initCvSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
 	for (int s = 0; s < 8; s++) {
 		cv.seq[seqNum].Steps[s].volts = (initType == INITBLANK ? 2.5 : getRand() * 5);
 		cv.seq[seqNum].Steps[s].rand_amt = (initType == INITBLANK ? 0 : round((getRand() * 10)));
-		cv.seq[seqNum].Steps[s].stutter = (initType == INITBLANK ? 0 : round(getRand()));
+		cv.seq[seqNum].Steps[s].stutter = 0;
 	}
 }
 void initGateSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
@@ -62,7 +65,7 @@ void initGateSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
 	for (int s = 0; s < 8; s++) {
 		gate.seq[seqNum].Steps[s].on = (initType == INITBLANK ? 0 : round(getRand()));
 		gate.seq[seqNum].Steps[s].rand_amt = (initType == INITBLANK ? 0 : round(getRand() * 10));
-		gate.seq[seqNum].Steps[s].stutter = (initType == INITBLANK ? 0 : round(getRand()));
+		gate.seq[seqNum].Steps[s].stutter = 0;
 	}
 }
 
@@ -74,6 +77,9 @@ double getRand() {
 void setup() {
 
 	pinMode(LED, OUTPUT);
+	pinMode(GATEOUT, OUTPUT);
+	pinMode(CLOCKPIN, INPUT);
+
 	analogWriteResolution(12);    // set resolution of DAC pin for outputting variable voltages
 
 	// Setup OLED
@@ -152,11 +158,12 @@ void loop() {
 		else {
 			gateRandVal = gate.seq[gateSeqNo].Steps[seqStep].on;
 		}
-		if (rndXTen < gate.seq[gateSeqNo].Steps[seqStep].rand_amt) {
+		/*if (rndXTen < gate.seq[gateSeqNo].Steps[seqStep].rand_amt) {
 			Serial.print("rndXTen: "); Serial.print(rndXTen);
 			Serial.print(" r: "); Serial.print(r);
 			Serial.print(" changed: "); Serial.println(gate.seq[gateSeqNo].Steps[seqStep].on != gateRandVal);
-		}
+		}*/
+		digitalWrite(GATEOUT, gateRandVal);
 
 		digitalWrite(LED, seqStep % 2 == 0 ? HIGH : LOW);
 		timeCounter = 0;
@@ -171,29 +178,44 @@ void loop() {
 		checkEditState();
 
 		if (round(newEncPos / 4) != round(oldEncPos / 4)) {
+			boolean upOrDown = newEncPos > oldEncPos;
+
 			// change parameter
 			if (editStep >= 0) {
+				
 				if (activeSeq == SEQCV) {
+					CvStep *s = &cv.seq[cvSeqNo].Steps[editStep];
 					if (editMode == STEPV) {
-						cv.seq[cvSeqNo].Steps[editStep].volts += newEncPos > oldEncPos ? 0.10 : -0.10;
-						cv.seq[cvSeqNo].Steps[editStep].volts = constrain(cv.seq[cvSeqNo].Steps[editStep].volts, 0, 5);
-						Serial.print("volts: ");  Serial.print(cv.seq[cvSeqNo].Steps[editStep].volts);
+						s->volts += upOrDown ? 0.10 : -0.10;
+						s->volts = constrain(s->volts, 0, 5);
+						Serial.print("volts: ");  Serial.print(s->volts);
 					}
-					if (editMode == STEPR) {
-						cv.seq[cvSeqNo].Steps[editStep].rand_amt += newEncPos > oldEncPos ? 1 : -1;
-						cv.seq[cvSeqNo].Steps[editStep].rand_amt = constrain(cv.seq[cvSeqNo].Steps[editStep].rand_amt, (uint16_t)0, (uint16_t)10);
-						Serial.print("rand: ");  Serial.print(cv.seq[cvSeqNo].Steps[editStep].rand_amt);
+					if (editMode == STEPR && (upOrDown || s->rand_amt > 0) && (!upOrDown || s->rand_amt < 10)) {
+						s->rand_amt += upOrDown ? 1 : -1;
+						Serial.print("rand: ");  Serial.print(s->rand_amt);
+					}
+					if (editMode == STUTTER && (upOrDown || s->stutter > 0) && (!upOrDown || s->stutter < 8)) {
+						//	As stutter amounts are a fixed list of musical divisions use an array to increase/decrease
+						int * p = std::find(stutterArray, stutterArray + sizeof(stutterArray), (int)s->stutter);
+						s->stutter = stutterArray[std::distance(stutterArray, p) + (upOrDown ? 1 : -1)];
+						Serial.print("stutter: ");  Serial.print(s->stutter);
 					}
 				}
 				else {
+					GateStep *s = &gate.seq[gateSeqNo].Steps[editStep];
 					if (editMode == STEPV) {
-						gate.seq[gateSeqNo].Steps[editStep].on = !gate.seq[gateSeqNo].Steps[editStep].on;
-						Serial.print("on: ");  Serial.print(gate.seq[gateSeqNo].Steps[editStep].on);
+						s->on = !s->on;
+						Serial.print("on: ");  Serial.print(s->on);
 					}
-					if (editMode == STEPR) {
-						gate.seq[gateSeqNo].Steps[editStep].rand_amt += newEncPos > oldEncPos ? 1 : -1;
-						gate.seq[gateSeqNo].Steps[editStep].rand_amt = constrain(gate.seq[gateSeqNo].Steps[editStep].rand_amt, (uint16_t)0, (uint16_t)10);
-						Serial.print("rand: ");  Serial.print(gate.seq[gateSeqNo].Steps[editStep].rand_amt);
+					if (editMode == STEPR && (upOrDown || s->rand_amt > 0) && (!upOrDown || s->rand_amt < 10)) {
+						s->rand_amt += upOrDown ? 1 : -1;
+						Serial.print("rand: ");  Serial.print(s->rand_amt);
+					}
+					if (editMode == STUTTER && (upOrDown || s->stutter > 0) && (!upOrDown || s->stutter < 8)) {
+						//	As stutter amounts are a fixed list of musical divisions use an array to increase/decrease
+						int * p = std::find(stutterArray, stutterArray + sizeof(stutterArray), (int)s->stutter);
+						s->stutter = stutterArray[std::distance(stutterArray, p) + (upOrDown ? 1 : -1)];
+						Serial.print("stutter: ");  Serial.print(s->stutter);
 					}
 				}
 			}
@@ -203,12 +225,12 @@ void loop() {
 				if (editMode == PATTERN) {
 					//uint8_t * pSeq;
 					uint8_t * pSeq = activeSeq == SEQCV ? &cvSeqNo : &gateSeqNo;
-					*pSeq += newEncPos > oldEncPos ? 1 : -1;
+					*pSeq += upOrDown ? 1 : -1;
 					*pSeq = *pSeq < 1 ? 8 : (*pSeq > 8 ? 1 : *pSeq);
 					if (DEBUGBTNS) Serial.print("cv no: ");  Serial.print(cvSeqNo); Serial.print("gate: ");  Serial.print(gateSeqNo);
 				}
 				if (editMode == SEQS) {
-					numSeqA += newEncPos > oldEncPos ? 1 : -1;
+					numSeqA += upOrDown ? 1 : -1;
 					numSeqA = constrain(numSeqA, 1, 8);
 					if (DEBUGBTNS) Serial.print("seqs: ");  Serial.print(numSeqA);
 				}
@@ -221,7 +243,7 @@ void loop() {
 		}
 
 		oldEncPos = newEncPos;
-		if (DEBUGBTNS) Serial.print("  Encoder: ");  Serial.println(newEncPos);
+		//if (DEBUGBTNS) Serial.print("  Encoder: ");  Serial.println(newEncPos);
 		lastEditing = millis();
 		dispHandler.setDisplayRefresh(REFRESHFULL);
 	}

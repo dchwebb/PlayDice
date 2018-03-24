@@ -10,7 +10,8 @@
 #endif
 
 #define LED 13
-#define CLOCKPIN 0
+//#define CLOCKPIN 0
+#define CLOCKPIN 14
 #define TEMPOPIN 9
 #define DACPIN 40
 #define BTNUPPIN 12
@@ -19,6 +20,7 @@
 #define ENCCLKPIN 5
 #define ENCDATAPIN 6
 #define OLED_RESET 4
+#define GATEOUT 16
 
 enum refreshType { REFRESHOFF, REFRESHFULL, REFRESHTOP, REFRESHBOTTOM };
 enum editType { STEPV, STEPR, STUTTER, SEQS, SEQMODE, PATTERN };		// STEPV allows deep editing of voltage; STEPR - editing random level; STUTTER - choose stutter speed, PATTERN - choose pattern
@@ -26,12 +28,12 @@ enum editType { STEPV, STEPR, STUTTER, SEQS, SEQMODE, PATTERN };		// STEPV allow
 // define structures to store sequence data
 struct CvStep {
 	float volts;
-	uint16_t rand_amt : 4; // from 0 to 10
+	uint8_t rand_amt : 4; // from 0 to 10
 	uint16_t stutter : 5;
 };
 struct GateStep {
 	uint16_t on : 1;
-	uint16_t rand_amt : 4; // from 0 to 10
+	uint8_t rand_amt : 4; // from 0 to 10
 	uint16_t stutter : 5;
 };
 struct CvSequence {
