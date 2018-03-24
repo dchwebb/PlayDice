@@ -22,14 +22,17 @@ uint16_t minBPM = 35;			// minimum BPM allowed for internal/external clock
 uint16_t maxBPM = 300;			// maximum BPM allowed for internal/external clock
 elapsedMillis timeCounter = 0;  // millisecond counter to check if next sequence step is due
 elapsedMillis debugCounter = 0;	// used to show debug data only every couple of ms
+unsigned long stepStart;		// time each new step starts
 uint32_t lastEditing = 0;		// ms counter to show detailed edit parameters while editing or just after
 uint8_t voltsMin = 0;			// Minimum allowed voltage amt per step
 uint8_t voltsMax = 5;			// Maximum allowed voltage amt
-float cvRandVal = 0;				// Voltage of current step with randomisation applied
+float cvRandVal = 0;			// Voltage of current step with randomisation applied
 boolean gateRandVal;			// 1 or 0 according to whether gate is high or low after randomisation
+uint8_t cvStutterStep;			// if a step is in stutter mode store the count of the current stutters 
+uint8_t gateStutterStep;		// if a step is in stutter mode store the count of the current stutters 
 uint8_t cvSeqNo = 1;			// store the sequence number for CV patterns
 uint8_t gateSeqNo = 1;			// store the sequence number for Gate patterns
-uint8_t numSeqA = 8;			// number of sequences in A section (S&H)
+uint8_t numSeqA = 8;			// number of sequences in A section (CV)
 seqMode modeSeqA = LOOPCURRENT;	// loop mode (LOOPCURRENT, LOOPALL)
 uint8_t numSeqB = 8;			// number of sequences in B section (gate)
 seqMode modeSeqB = LOOPCURRENT;	// loop mode (LOOPCURRENT, LOOPALL)
@@ -65,7 +68,7 @@ void initGateSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
 	for (int s = 0; s < 8; s++) {
 		gate.seq[seqNum].Steps[s].on = (initType == INITBLANK ? 0 : round(getRand()));
 		gate.seq[seqNum].Steps[s].rand_amt = (initType == INITBLANK ? 0 : round(getRand() * 10));
-		gate.seq[seqNum].Steps[s].stutter = 0;
+		gate.seq[seqNum].Steps[s].stutter = s == 0 ? 4: 0;
 	}
 }
 
@@ -95,10 +98,8 @@ void setup() {
 	for (int p = 1; p <= 8; p++) {
 		initCvSequence(p, INITRAND);
 		srand(micros());
-		initGateSequence(p, INITRAND);
+		initGateSequence(p, INITBLANK);
 	}
-
-	//Serial.print("int: ");  Serial.println(sizeof(minBPM));
 
 	// initialiase encoder
 	oldEncPos = round(myEnc.read() / 4);
@@ -126,48 +127,71 @@ void loop() {
 
 	//	check if the sequence counter is ready to advance to the next step. Also if using external clock wait for pulse
 	uint16_t timeStep = 1000 / (((float)bpm / 60) * 2);		// get length of step based on bpm
-	if (timeCounter >= timeStep && (!clock.hasSignal() || millis() - clock.clockHighTime < 10)) {
-
-		//	increment sequence step
-		seqStep += 1;
-		if (seqStep == cv.seq[cvSeqNo].steps) {
-			seqStep = 0;
+	boolean newStep = (timeCounter >= timeStep && (!clock.hasSignal() || millis() - clock.clockHighTime < 10));
+	boolean newStutter = 0;
+	if (gateStutterStep > 0 && gateStutterStep < gate.seq[gateSeqNo].Steps[seqStep].stutter) {
+		//gate.seq[gateSeqNo].Steps[editStep].stutter
+		if (timeCounter >= gateStutterStep * (timeStep / gate.seq[gateSeqNo].Steps[seqStep].stutter)) {
+			Serial.print("new stutter step: "); Serial.println(millis());
+			newStutter = 1;
 		}
+	}
 
+	if (newStep || newStutter) {
+
+		//	increment sequence step and reinitialise stutter steps
+		if (newStep) {
+			seqStep += 1;
+			if (seqStep == cv.seq[cvSeqNo].steps) seqStep = 0;
+			cvStutterStep = 0;
+			gateStutterStep = 0; 
+			Serial.print("new step: "); Serial.println(millis());
+		}
 		
 		// CV sequence: calculate possible ranges of randomness to ensure we don't try and set a random value out of permitted range
-		float randLower = getRandLimit(cv.seq[cvSeqNo].Steps[seqStep], LOWER);
-		float randUpper = getRandLimit(cv.seq[cvSeqNo].Steps[seqStep], UPPER);
-		cvRandVal = constrain(randLower + (getRand() * (randUpper - randLower)), 0, voltsMax);
-		setCV(cvRandVal);
-
-		if (DEBUGSTEPS) {
-			Serial.print("S: "); Serial.println(seqStep);
-			Serial.print("V: "); Serial.print(cv.seq[cvSeqNo].Steps[seqStep].volts); Serial.print(" R: "); Serial.println(cv.seq[cvSeqNo].Steps[seqStep].rand_amt);
-			Serial.print("L: "); Serial.print(randLower); Serial.print(" U: "); Serial.println(randUpper);
-			Serial.print("result: "); Serial.println(cvRandVal);
+		if (newStep || cvStutterStep > 0) {
+			float randLower = getRandLimit(cv.seq[cvSeqNo].Steps[seqStep], LOWER);
+			float randUpper = getRandLimit(cv.seq[cvSeqNo].Steps[seqStep], UPPER);
+			cvRandVal = constrain(randLower + (getRand() * (randUpper - randLower)), 0, voltsMax);
+			setCV(cvRandVal);
+			if (DEBUGSTEPS) {
+				Serial.print("S: "); Serial.println(seqStep);
+				Serial.print("V: "); Serial.print(cv.seq[cvSeqNo].Steps[seqStep].volts); Serial.print(" R: "); Serial.println(cv.seq[cvSeqNo].Steps[seqStep].rand_amt);
+				Serial.print("L: "); Serial.print(randLower); Serial.print(" U: "); Serial.println(randUpper);
+				Serial.print("result: "); Serial.println(cvRandVal);
+			}
 		}
 
 		// Gate sequence: calculate probability of gate being high or low. Eg rand_amt = 9 means there is a 90% chance that the value will be randomised
-		uint8_t rndXTen = round(getRand() * 10);
-		float r = getRand();
-		if (rndXTen < gate.seq[gateSeqNo].Steps[seqStep].rand_amt) {
-			
-			gateRandVal = round(r);
+		if (newStep || gateStutterStep > 0) {
+			if (gate.seq[gateSeqNo].Steps[seqStep].stutter > 0) {
+				gateStutterStep += 1;
+				gateRandVal = (gateStutterStep % 2 > 0);
+			}
+			else {
+				uint8_t rndXTen = round(getRand() * 10);
+				float r = getRand();
+				if (rndXTen < gate.seq[gateSeqNo].Steps[seqStep].rand_amt) {
+					gateRandVal = round(r);
+				}
+				else {
+					gateRandVal = gate.seq[gateSeqNo].Steps[seqStep].on;
+				}
+				if (DEBUGSTEPS) {
+					Serial.print("rndXTen: "); Serial.print(rndXTen);
+					Serial.print(" r: "); Serial.print(r);
+					Serial.print(" changed: "); Serial.println(gate.seq[gateSeqNo].Steps[seqStep].on != gateRandVal);
+				}
+			}
+			digitalWrite(GATEOUT, gateRandVal);
 		}
-		else {
-			gateRandVal = gate.seq[gateSeqNo].Steps[seqStep].on;
+
+		// flash LED and reset step info
+		if (newStep) {
+			digitalWrite(LED, seqStep % 2 == 0 ? HIGH : LOW);
+			timeCounter = 0;
+			newStep = 0;
 		}
-		/*if (rndXTen < gate.seq[gateSeqNo].Steps[seqStep].rand_amt) {
-			Serial.print("rndXTen: "); Serial.print(rndXTen);
-			Serial.print(" r: "); Serial.print(r);
-			Serial.print(" changed: "); Serial.println(gate.seq[gateSeqNo].Steps[seqStep].on != gateRandVal);
-		}*/
-		digitalWrite(GATEOUT, gateRandVal);
-
-		digitalWrite(LED, seqStep % 2 == 0 ? HIGH : LOW);
-		timeCounter = 0;
-
 		dispHandler.setDisplayRefresh(REFRESHFULL);
 	}
 
@@ -188,34 +212,34 @@ void loop() {
 					if (editMode == STEPV) {
 						s->volts += upOrDown ? 0.10 : -0.10;
 						s->volts = constrain(s->volts, 0, 5);
-						Serial.print("volts: ");  Serial.print(s->volts);
+						Serial.print("volts: "); Serial.print(s->volts);
 					}
 					if (editMode == STEPR && (upOrDown || s->rand_amt > 0) && (!upOrDown || s->rand_amt < 10)) {
 						s->rand_amt += upOrDown ? 1 : -1;
-						Serial.print("rand: ");  Serial.print(s->rand_amt);
+						Serial.print("rand: "); Serial.print(s->rand_amt);
 					}
 					if (editMode == STUTTER && (upOrDown || s->stutter > 0) && (!upOrDown || s->stutter < 8)) {
 						//	As stutter amounts are a fixed list of musical divisions use an array to increase/decrease
 						int * p = std::find(stutterArray, stutterArray + sizeof(stutterArray), (int)s->stutter);
 						s->stutter = stutterArray[std::distance(stutterArray, p) + (upOrDown ? 1 : -1)];
-						Serial.print("stutter: ");  Serial.print(s->stutter);
+						Serial.print("stutter: "); Serial.print(s->stutter);
 					}
 				}
 				else {
 					GateStep *s = &gate.seq[gateSeqNo].Steps[editStep];
 					if (editMode == STEPV) {
 						s->on = !s->on;
-						Serial.print("on: ");  Serial.print(s->on);
+						Serial.print("on: "); Serial.print(s->on);
 					}
 					if (editMode == STEPR && (upOrDown || s->rand_amt > 0) && (!upOrDown || s->rand_amt < 10)) {
 						s->rand_amt += upOrDown ? 1 : -1;
-						Serial.print("rand: ");  Serial.print(s->rand_amt);
+						Serial.print("rand: "); Serial.print(s->rand_amt);
 					}
 					if (editMode == STUTTER && (upOrDown || s->stutter > 0) && (!upOrDown || s->stutter < 8)) {
 						//	As stutter amounts are a fixed list of musical divisions use an array to increase/decrease
 						int * p = std::find(stutterArray, stutterArray + sizeof(stutterArray), (int)s->stutter);
 						s->stutter = stutterArray[std::distance(stutterArray, p) + (upOrDown ? 1 : -1)];
-						Serial.print("stutter: ");  Serial.print(s->stutter);
+						Serial.print("stutter: "); Serial.print(s->stutter);
 					}
 				}
 			}
@@ -227,23 +251,23 @@ void loop() {
 					uint8_t * pSeq = activeSeq == SEQCV ? &cvSeqNo : &gateSeqNo;
 					*pSeq += upOrDown ? 1 : -1;
 					*pSeq = *pSeq < 1 ? 8 : (*pSeq > 8 ? 1 : *pSeq);
-					if (DEBUGBTNS) Serial.print("cv no: ");  Serial.print(cvSeqNo); Serial.print("gate: ");  Serial.print(gateSeqNo);
+					if (DEBUGBTNS) { Serial.print("cv no: ");  Serial.print(cvSeqNo); Serial.print("gate: ");  Serial.print(gateSeqNo); }
 				}
 				if (editMode == SEQS) {
 					numSeqA += upOrDown ? 1 : -1;
 					numSeqA = constrain(numSeqA, 1, 8);
-					if (DEBUGBTNS) Serial.print("seqs: ");  Serial.print(numSeqA);
+					if (DEBUGBTNS) { Serial.print("seqs: ");  Serial.print(numSeqA); }
 				}
 
 				if (editMode == SEQMODE) {
 					modeSeqA = modeSeqA == LOOPCURRENT ? LOOPALL : LOOPCURRENT;
-					if (DEBUGBTNS) Serial.print("mode: ");  Serial.print(modeSeqA);
+					if (DEBUGBTNS) { Serial.print("mode: ");  Serial.print(modeSeqA); }
 				}
 			}
+			if (DEBUGBTNS) Serial.print("  Encoder: ");  Serial.println(newEncPos);
 		}
 
-		oldEncPos = newEncPos;
-		//if (DEBUGBTNS) Serial.print("  Encoder: ");  Serial.println(newEncPos);
+		oldEncPos = newEncPos;		
 		lastEditing = millis();
 		dispHandler.setDisplayRefresh(REFRESHFULL);
 	}
