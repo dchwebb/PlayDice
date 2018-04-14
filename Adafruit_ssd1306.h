@@ -115,7 +115,7 @@ class Adafruit_SSD1306 : public Adafruit_GFX {
 
   void clearDisplay(void);
   void invertDisplay(uint8_t i);
-  void display();
+  boolean display();
 
   void startscrollright(uint8_t start, uint8_t stop);
   void startscrollleft(uint8_t start, uint8_t stop);
@@ -132,8 +132,10 @@ class Adafruit_SSD1306 : public Adafruit_GFX {
   virtual void drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color);
 
  private:
-  int8_t _i2caddr, _vccstate, sid, sclk, dc, rst, cs;
-  void fastSPIwrite(uint8_t c);
+	boolean forceUpdate;	// DW when using optimised partial frame refresh odd pixels can appear at the beginning as buffers do not seem to initialise to blank
+	uint8_t screenMode;		// DW store the screen update mode (different modes used for full and partial reset and only want to trigger if changed)
+	int8_t _i2caddr, _vccstate, sid, sclk, dc, rst, cs;
+ 	void fastSPIwrite(uint8_t c);
 
   boolean hwSPI;
 #ifdef HAVE_PORTREG

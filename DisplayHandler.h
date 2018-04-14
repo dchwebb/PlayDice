@@ -22,6 +22,7 @@ extern seqType activeSeq;
 extern uint32_t lastEditing;
 extern CvPatterns cv;
 extern GatePatterns gate;
+extern uint8_t buffer[];
 
 extern float getRandLimit(CvStep s, rndType getUpper);
 extern boolean checkEditing();
@@ -38,11 +39,12 @@ public:
 	void init();
 	int cvVertPos(float voltage);
 	void drawDottedVLine(int16_t x, int16_t y, int16_t h, uint16_t color);
-	void drawParam(const char s[], float v, int16_t x, int16_t y, uint16_t w, boolean selected);
+	//void drawParam(const char s[], float v, int16_t x, int16_t y, uint16_t w, boolean selected);
 	void drawParam(const char s[], String v, int16_t x, int16_t y, uint16_t w, boolean selected);
 	Adafruit_SSD1306 display;
 private:
 	long clockSignal;
+	uint32_t frameStart;
 };
 
 
@@ -62,7 +64,7 @@ void DisplayHandler::setDisplayRefresh(int requestedRefresh) {
 // carry out the screen refresh building the various UI elements
 void DisplayHandler::updateDisplay() {
 	if (DEBUGFRAME) {
-		Serial.print("Frame start: "); Serial.print(millis());
+		frameStart = millis();
 	}
 
 	boolean editing = checkEditing();		// set to true if currently editing to show detailed parameters
@@ -71,6 +73,7 @@ void DisplayHandler::updateDisplay() {
 
 	//	Write the sequence number for CV and gate sequence
 	display.setTextSize(1);
+
 	if (!editing || activeSeq == SEQCV) {
 		display.setCursor(0, 0);
 		display.print("cv");
@@ -91,9 +94,9 @@ void DisplayHandler::updateDisplay() {
 	}
 	display.setTextSize(1);
 
-	// Draw a dot if we have just received a clock high signal
-	if (seqStep % 2 == 0 && millis() - clock.clockHighTime < 20) {
-		display.drawPixel(127, 0, WHITE);
+	// Draw a dot if we have a clock high signal
+	if (clock.hasSignal()) {
+		display.drawFastVLine(127, 0, 1, WHITE);
 	}
 
 	//	Draw arrow beneath/above sequence number if selected for editing
@@ -126,12 +129,30 @@ void DisplayHandler::updateDisplay() {
 
 		// Draw gate pattern 
 		if (!editing || activeSeq == SEQGATE) {
-			if (gate.seq[gateSeqNo].Steps[i].on) {
+			if (gate.seq[gateSeqNo].Steps[i].on || gate.seq[gateSeqNo].Steps[i].stutter > 0) {
 				if (seqStep == i && !gateRandVal) {
-					display.drawRect(voltHPos + 4, 50, 6, 14, WHITE);
+					display.drawRect(voltHPos + 4, 50, 6, 14, WHITE);		// draw gate as empty rectange for current step if set 'on' but randomised 'off'
 				}
 				else {
-					display.fillRect(voltHPos + 4, 50, 6, 14, WHITE);
+					if (gate.seq[gateSeqNo].Steps[i].stutter > 0) {
+						
+						// draw base line
+						display.drawFastHLine(voltHPos + 3, 63, 8, WHITE);
+						float w = (float)8 / gate.seq[gateSeqNo].Steps[i].stutter;
+						// handle more variable changing bugs - sd seems to jump around if initialised in the for loop
+						int sd;
+						sd = 0;
+						for (sd = 0; sd < round((float)gate.seq[gateSeqNo].Steps[i].stutter / 2); sd++) {
+							// draw vertical stripes showing stutter layout - if gate is off then stutter starts later														
+							display.fillRect(voltHPos + 3 + (gate.seq[gateSeqNo].Steps[i].on ? 0 : round(w)) + (sd * round(w * 2)), 50, round(w), 14, WHITE);
+							
+							//Serial.print("x on: ");  Serial.println(voltHPos + 3 + (sd * round(w * 2)));
+							//Serial.print("x off: ");  Serial.println(voltHPos + 3 + (gate.seq[gateSeqNo].Steps[i].on ? 0 : round(w)) + (sd * round(w * 2)));
+						}
+					}
+					else {
+						display.fillRect(voltHPos + 4, 50, 6, 14, WHITE);
+					}
 				}
 			}
 			else {
@@ -165,8 +186,8 @@ void DisplayHandler::updateDisplay() {
 		if (activeSeq == SEQGATE) {
 			if (editMode == STEPR || editMode == STEPV || editMode == STUTTER) {
 				drawParam("Gate", String(gate.seq[gateSeqNo].Steps[editStep].on ? "ON" : "OFF"), 0, 0, 36, editMode == STEPV);
-				drawParam("Random", String(gate.seq[cvSeqNo].Steps[editStep].rand_amt), 38, 0, 44, editMode == STEPR);
-				drawParam("Stutter", String(gate.seq[cvSeqNo].Steps[editStep].stutter), 81, 0, 47, editMode == STUTTER);
+				drawParam("Random", String(gate.seq[gateSeqNo].Steps[editStep].rand_amt), 38, 0, 44, editMode == STEPR);
+				drawParam("Stutter", String(gate.seq[gateSeqNo].Steps[editStep].stutter), 81, 0, 47, editMode == STUTTER);
 			}
 
 			if (editMode == PATTERN || editMode == SEQS || editMode == SEQMODE) {
@@ -190,20 +211,12 @@ void DisplayHandler::updateDisplay() {
 			}
 		}
 	}
-	else {
-		/*
-		display.setCursor(91, 43);
-		display.print("e: "); display.print(editMode);
-		display.setCursor(91, 53);
-		display.print("b: "); display.println(bpm);
-		*/
-	}
-	display.display();
-	displayRefresh = REFRESHOFF;
 
-	if (DEBUGFRAME) {
-		Serial.print("  Frame end: "); Serial.println(millis());
+	if (display.display() && DEBUGFRAME) {
+		Serial.print("Frame start: "); Serial.print(frameStart); Serial.print(" end: "); Serial.print(millis()); Serial.print(" time: "); Serial.println(millis() - frameStart);
 	}
+
+	displayRefresh = REFRESHOFF;
 }
 
 
@@ -229,26 +242,6 @@ void DisplayHandler::drawParam(const char s[], String v, int16_t x, int16_t y, u
 	}
 }
 
-//void DisplayHandler::drawParam(const char s[], float v, int16_t x, int16_t y, uint16_t w, boolean selected) {
-//	display.setCursor(x + 4, y + 3);
-//	display.println(s);
-//	display.setCursor(x + 4, y + 13);
-//	display.println(v);
-//	if (selected) {
-//		display.drawRect(x, y, w, 24, INVERSE);
-//	}
-//
-//}
-
-//void DisplayHandler::drawParam(const char s[], const char v[], int16_t x, int16_t y, uint16_t w, boolean selected) {
-//	display.setCursor(x + 4, y + 3);
-//	display.println(s);
-//	display.setCursor(x + 4, y + 13);
-//	display.println(v);
-//	if (selected) {
-//		display.drawRect(x, y, w, 24, INVERSE);
-//	}
-//}
 
 void DisplayHandler::init() {
 	const unsigned char diceBitmap[] = {

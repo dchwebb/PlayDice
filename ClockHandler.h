@@ -14,8 +14,8 @@ public:
 
 	int clockThreshold = 500;		// Clock is converted to value between 0 and 1023 for 0-3.3V - set threshold to converted level
 	int clockBPM = 0;				// BPM read from external clock
-	uint32_t clockHighTime = 0;// time in milliseconds of last clock signal (eg for timing pulses and display)
-	uint32_t clockInterval = 0;// time in milliseconds of current clock interval
+	uint32_t clockHighTime = 0;		// time in milliseconds of last clock signal (eg for timing pulses and display)
+	uint32_t clockInterval = 0;		// time in milliseconds of current clock interval
 	boolean hasSignal();			// returns true if a clock signal is detected and within sensible limits
 	int readClock();				// reads the clock pin and calculates BPM if clock signal found
 	void printDebug();				// prints debug information to the serial monitor
@@ -26,9 +26,9 @@ private:
 	boolean clockSignal = 0;		// 1 = External clock is sending currently sending pulses
 	int clockInput = 0;				// voltage reading of clock inpu pin translated to 0-1023 range (0-3.3V)
 	boolean clockHigh = 0;			// Set to 1 if clock is above threshold
-	uint32_t lastClockHigh = 0;// time in milliseconds since clock last high to check for bounce
-	uint32_t lch = 0;// time in milliseconds since clock last high to check for bounce
-	uint32_t lastGoodBPM = 0;	// time in milliseconds since we got a valid BPM reading to allow brief dropouts to be handled
+	uint32_t lastClockHigh = 0;		// time in milliseconds since clock last high to check for bounce
+	uint32_t lch = 0;				// time in milliseconds since clock last high to check for bounce
+	uint32_t lastGoodBPM = 0;		// time in milliseconds since we got a valid BPM reading to allow brief dropouts to be handled
 	int testClockBPM = 0;			// Provisional BPM read from external clock - may not be used for actual clock if signal intermittant
 	static const int avStepsBMP = 5;// TODO - number of previous reads to average
 	int previousBPM[avStepsBMP];	// TODO - use array to average minor tempo fluctuations out

@@ -19,7 +19,7 @@
 #define ARDUINO 10805
 #define F_CPU 96000000
 #define USB_SERIAL
-#define LAYOUT_US_ENGLISH
+#define LAYOUT_UNITED_KINGDOM
 #define __cplusplus 201103L
 #define __arm__
 #define __ARM__
