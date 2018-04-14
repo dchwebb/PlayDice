@@ -15,9 +15,9 @@ extern boolean gateRandVal;
 extern uint8_t cvSeqNo;
 extern uint8_t gateSeqNo;
 extern uint8_t numSeqA;
-extern seqMode modeSeqA;
+extern seqMode cvLoopMode;
 extern uint8_t numSeqB;
-extern seqMode modeSeqB;
+extern seqMode gateLoopMode;
 extern seqType activeSeq;
 extern uint32_t lastEditing;
 extern CvPatterns cv;
@@ -86,11 +86,11 @@ void DisplayHandler::updateDisplay() {
 	display.setTextSize(2);
 	if (!editing || activeSeq == SEQCV) {
 		display.setCursor(1, 11);
-		display.print(cvSeqNo);
+		display.print(cvSeqNo + 1);
 	}
 	if (!editing || activeSeq == SEQGATE) {
 		display.setCursor(1, 50);
-		display.print(gateSeqNo);
+		display.print(gateSeqNo + 1);
 	}
 	display.setTextSize(1);
 
@@ -192,7 +192,7 @@ void DisplayHandler::updateDisplay() {
 
 			if (editMode == PATTERN || editMode == SEQS || editMode == SEQMODE) {
 				drawParam("Pattern", String(gateSeqNo), 0, 0, 49, editMode == PATTERN);
-				drawParam("Loop", String(modeSeqB == LOOPCURRENT ? "ONE" : "ALL"), 52, 0, 34, editMode == SEQMODE);
+				drawParam("Loop", String(gateLoopMode == LOOPCURRENT ? "ONE" : "ALL"), 52, 0, 34, editMode == SEQMODE);
 				drawParam("Loops", String(numSeqB), 90, 0, 34, editMode == SEQS);
 			}
 		}
@@ -206,7 +206,7 @@ void DisplayHandler::updateDisplay() {
 
 			if (editMode == PATTERN || editMode == SEQS || editMode == SEQMODE) {
 				drawParam("Pattern", String(cvSeqNo), 0, 40, 49, editMode == PATTERN);
-				drawParam("Loop", String(modeSeqA == LOOPCURRENT ? "ONE" : "ALL"), 52, 40, 34, editMode == SEQMODE);
+				drawParam("Loop", String(cvLoopMode == LOOPCURRENT ? "ONE" : "ALL"), 52, 40, 34, editMode == SEQMODE);
 				drawParam("Loops", String(numSeqA), 90, 40, 34, editMode == SEQS);
 			}
 		}

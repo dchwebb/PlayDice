@@ -451,7 +451,7 @@ boolean Adafruit_SSD1306::display(void) {
 					}
 
 					if (changed) {
-						Serial.print("Refresh block "); Serial.println(b);
+						//Serial.print("Refresh block "); Serial.println(b);
 						uint8_t highbyte = ((b % 128) >> 4);
 						uint8_t lowbyte = (b % 128) - (highbyte << 4);
 
@@ -497,7 +497,7 @@ boolean Adafruit_SSD1306::display(void) {
 			ssd1306_command(0); // Page start address (0 = reset)
 			ssd1306_command(7); // Page end address
 			
-			Serial.println("Force Update");
+			//Serial.println("Force Update");
 			for (uint16_t i = 0; i < (SSD1306_LCDWIDTH*SSD1306_LCDHEIGHT / 8); i++) {
 				// send a bunch of data in one xmission
 				Wire.beginTransmission(_i2caddr);

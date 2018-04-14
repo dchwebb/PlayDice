@@ -12,8 +12,9 @@
 #define LED 13
 //#define CLOCKPIN 0
 #define CLOCKPIN 14
-#define TEMPOPIN 9
+#define TEMPOPIN 9		// analog pin 9 A9
 #define DACPIN 40
+#define BTNACTION 9		// digital pin 9
 #define BTNUPPIN 12
 #define BTNDNPIN 11
 #define BTNENCPIN 10
@@ -37,13 +38,13 @@ struct GateStep {
 	uint16_t stutter : 5;
 };
 struct CvSequence {
-	uint16_t mode : 4;		//	CURRENT - Loop current sequence, ALL - run through sequences
-	uint16_t steps : 4;		//  Number of steps in sequence
+	uint8_t mode : 4;		//	CURRENT - Loop current sequence, ALL - run through sequences
+	uint8_t steps : 4;		//  Number of steps in sequence
 	struct CvStep Steps[8];
 };
 struct GateSequence {
-	uint16_t mode : 4;		//	CURRENT - Loop current sequence, ALL - run through sequences
-	uint16_t steps : 4;		//  Number of steps in sequence
+	uint8_t mode : 4;		//	CURRENT - Loop current sequence, ALL - run through sequences
+	uint8_t steps : 4;		//  Number of steps in sequence
 	struct GateStep Steps[8];
 };
 
@@ -65,7 +66,7 @@ struct Btn {
 	boolean pressed;
 	int lastPressed;
 };
-enum btnName { STEPUP, STEPDN, ENCODER };
+enum btnName { STEPUP, STEPDN, ENCODER, ACTION };
 
 /*
 class Settings {
