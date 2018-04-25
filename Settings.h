@@ -15,9 +15,9 @@
 #define TEMPOPIN 9		// analog pin 9 A9
 #define DACPIN 40
 #define BTNACTION 9		// digital pin 9
-#define BTNUPPIN 12
-#define BTNDNPIN 11
-#define BTNENCPIN 10
+#define BTNUPPIN 1
+#define BTNDNPIN 0
+#define BTNENCPIN 2
 #define ENCCLKPIN 5
 #define ENCDATAPIN 6
 #define OLED_RESET 4

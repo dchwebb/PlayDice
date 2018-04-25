@@ -49,7 +49,7 @@ boolean bothButtons;
 //	declare variables
 struct CvPatterns cv;
 struct GatePatterns gate;
-Btn btns[] = { { STEPUP, 12 },{ STEPDN, 11 },{ ENCODER, 10 },{ ACTION, 9 } };
+Btn btns[] = { { STEPUP, 1 },{ STEPDN, 0 },{ ENCODER, 2 },{ ACTION, 9 } };
 int stutterArray[] = { 0, 2, 3, 4, 6, 8 };
 Encoder myEnc(ENCCLKPIN, ENCDATAPIN);
 ClockHandler clock(minBPM, maxBPM);
