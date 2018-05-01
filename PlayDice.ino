@@ -11,7 +11,7 @@
 //#include <stdio.h>
 
 const boolean DEBUGCLOCK = 0;
-const boolean DEBUGSTEPS = 1;
+const boolean DEBUGSTEPS = 0;
 const boolean DEBUGRAND = 0;
 const boolean DEBUGFRAME = 0;
 const boolean DEBUGBTNS = 1;
@@ -277,11 +277,11 @@ void loop() {
 
 				//	sequence select mode
 				if (editMode == PATTERN) {
-					//uint8_t * pSeq;
 					uint8_t * pSeq = activeSeq == SEQCV ? &cvSeqNo : &gateSeqNo;
 					*pSeq += upOrDown ? 1 : -1;
-					*pSeq = *pSeq < 1 ? 8 : (*pSeq > 8 ? 1 : *pSeq);
-					if (DEBUGBTNS) { Serial.print("cv no: ");  Serial.print(cvSeqNo); Serial.print("gate: ");  Serial.print(gateSeqNo); }
+					*pSeq = *pSeq == 255 ? 7 : (*pSeq > 7 ? 0 : *pSeq);		// because we are using an unsigned int -1 goes to 255
+					if (DEBUGBTNS) { Serial.print("cv no: ");  Serial.print(cvSeqNo); Serial.print(" gate: ");  Serial.print(gateSeqNo); }
+
 				}
 				if (editMode == SEQS) {
 					numSeqA += upOrDown ? 1 : -1;

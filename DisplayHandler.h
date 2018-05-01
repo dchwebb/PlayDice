@@ -182,7 +182,7 @@ void DisplayHandler::updateDisplay() {
 			}
 
 			if (editMode == PATTERN || editMode == SEQS || editMode == SEQMODE) {
-				drawParam("Pattern", String(gateSeqNo), 0, 0, 49, editMode == PATTERN);
+				drawParam("Pattern", String(gateSeqNo + 1), 0, 0, 49, editMode == PATTERN);
 				drawParam("Loop", String(gateLoopMode == LOOPCURRENT ? "ONE" : "ALL"), 52, 0, 34, editMode == SEQMODE);
 				drawParam("Loops", String(numSeqB), 90, 0, 34, editMode == SEQS);
 			}
@@ -196,7 +196,7 @@ void DisplayHandler::updateDisplay() {
 			}
 
 			if (editMode == PATTERN || editMode == SEQS || editMode == SEQMODE) {
-				drawParam("Pattern", String(cvSeqNo), 0, 40, 49, editMode == PATTERN);
+				drawParam("Pattern", String(cvSeqNo + 1), 0, 40, 49, editMode == PATTERN);
 				drawParam("Loop", String(cvLoopMode == LOOPCURRENT ? "ONE" : "ALL"), 52, 40, 34, editMode == SEQMODE);
 				drawParam("Loops", String(numSeqA), 90, 40, 34, editMode == SEQS);
 			}
