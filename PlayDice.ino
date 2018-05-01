@@ -5,12 +5,13 @@
 #include "ClockHandler.h"
 #include "DisplayHandler.h"
 #include "Settings.h"
+
 //#include <vector>
 #include <algorithm>
 //#include <stdio.h>
 
 const boolean DEBUGCLOCK = 0;
-const boolean DEBUGSTEPS = 0;
+const boolean DEBUGSTEPS = 1;
 const boolean DEBUGRAND = 0;
 const boolean DEBUGFRAME = 0;
 const boolean DEBUGBTNS = 1;
@@ -35,7 +36,7 @@ uint8_t gateStutterStep;		// if a step is in stutter mode store the count of the
 uint8_t cvSeqNo = 0;			// store the sequence number for CV patterns
 uint8_t gateSeqNo = 0;			// store the sequence number for Gate patterns
 uint8_t numSeqA = 8;			// number of sequences in A section (CV)
-seqMode cvLoopMode = LOOPALL;	// loop mode (LOOPCURRENT, LOOPALL)
+seqMode cvLoopMode = LOOPCURRENT;	// loop mode (LOOPCURRENT, LOOPALL)
 uint8_t numSeqB = 8;			// number of sequences in B section (gate)
 seqMode gateLoopMode = LOOPCURRENT;	// loop mode (LOOPCURRENT, LOOPALL)
 int8_t seqStep = -1;			// increments each step of sequence
@@ -49,7 +50,7 @@ boolean bothButtons;
 //	declare variables
 struct CvPatterns cv;
 struct GatePatterns gate;
-Btn btns[] = { { STEPUP, 1 },{ STEPDN, 0 },{ ENCODER, 2 },{ ACTION, 9 } };
+Btn btns[] = { { STEPUP, 1 },{ STEPDN, 0 },{ ENCODER, 2 },{ ACTION, 3 } };
 int stutterArray[] = { 0, 2, 3, 4, 6, 8 };
 Encoder myEnc(ENCCLKPIN, ENCDATAPIN);
 ClockHandler clock(minBPM, maxBPM);
@@ -60,7 +61,7 @@ void initCvSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
 	cv.seq[seqNum].steps = numSteps;
 	for (int s = 0; s < 8; s++) {
 		cv.seq[seqNum].Steps[s].volts = (initType == INITBLANK ? 2.5 : getRand() * 5);
-		cv.seq[seqNum].Steps[s].rand_amt = (initType == INITBLANK ? 0 : round((getRand() * 10)));
+		cv.seq[seqNum].Steps[s].rand_amt = 0;		// (initType == INITBLANK ? 0 : round((getRand() * 10)));
 		cv.seq[seqNum].Steps[s].stutter = 0;
 	}
 }
@@ -138,6 +139,13 @@ void loop() {
 			newStutter = 1;
 		}
 	}
+	if (cvStutterStep > 0 && cvStutterStep < cv.seq[cvSeqNo].Steps[seqStep].stutter) {
+		if (timeCounter >= cvStutterStep * (timeStep / cv.seq[cvSeqNo].Steps[seqStep].stutter)) {
+			if (DEBUGSTEPS) { Serial.print("new stutter step: "); Serial.println(millis()); }
+			newStutter = 1;
+		}
+	}
+
 
 	if (newStep || newStutter) {
 		//	increment sequence step and reinitialise stutter steps
@@ -160,13 +168,19 @@ void loop() {
 		}
 
 		//	guess the next step or stutter time to estimate if we have time to do a refresh
-		guessNextStep = millis() + (gate.seq[gateSeqNo].Steps[seqStep].stutter ? (timeStep / gate.seq[gateSeqNo].Steps[seqStep].stutter) : timeStep);
+		
+		//guessNextStep = millis() + (gate.seq[gateSeqNo].Steps[seqStep].stutter ? (timeStep / gate.seq[gateSeqNo].Steps[seqStep].stutter) : timeStep);
+		guessNextStep = millis() + min((gate.seq[gateSeqNo].Steps[seqStep].stutter ? (timeStep / gate.seq[gateSeqNo].Steps[seqStep].stutter) : timeStep), (cv.seq[cvSeqNo].Steps[seqStep].stutter ? (timeStep / cv.seq[cvSeqNo].Steps[seqStep].stutter) : timeStep));
+
 		if (DEBUGSTEPS) {
 			Serial.print("guess next step: "); Serial.println(guessNextStep);
 		}
 
 		// CV sequence: calculate possible ranges of randomness to ensure we don't try and set a random value out of permitted range
 		if (newStep || cvStutterStep > 0) {
+			if (cv.seq[cvSeqNo].Steps[seqStep].stutter > 0) {
+				cvStutterStep += 1;
+			}
 			float randLower = getRandLimit(cv.seq[cvSeqNo].Steps[seqStep], LOWER);
 			float randUpper = getRandLimit(cv.seq[cvSeqNo].Steps[seqStep], UPPER);
 			cvRandVal = constrain(randLower + (getRand() * (randUpper - randLower)), 0, voltsMax);
@@ -208,9 +222,6 @@ void loop() {
 			digitalWrite(LED, seqStep % 2 == 0 ? HIGH : LOW);
 			timeCounter = 0;
 			newStep = 0;
-		}
-		if (!gateStutterStep) {
-			dispHandler.setDisplayRefresh(REFRESHFULL);
 		}
 	}
 
@@ -294,7 +305,6 @@ void loop() {
 
 		oldEncPos = newEncPos;
 		lastEditing = millis();
-		dispHandler.setDisplayRefresh(REFRESHFULL);
 	}
 
 	// handle momentary button presses - step up/down or encoder button to switch editing mode
@@ -381,11 +391,6 @@ void loop() {
 	else {
 		bothButtons = 0;
 	}
-
-	//	Trigger a display refresh if the clock has just received a signal or not received one for over a second (to avoid display interfering with clock reading)
-	/*if (dispHandler.displayRefresh > 0 && millis() > 1000 && (millis() - clock.clockHighTime < 10 || millis() - clock.clockHighTime > 1000)) {
-		dispHandler.updateDisplay();
-	}*/
 
 	// about the longest display update time is 24 milliseconds so don't update display if less than 24 milliseconds until the next expected event (step change or clock tick)
 	if (millis() > 1000 && guessNextStep - millis() > 24 && clock.clockHighTime + clock.clockInterval - millis() > 24) {

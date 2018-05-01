@@ -23,7 +23,6 @@
 #define __cplusplus 201103L
 #define __arm__
 #define __ARM__
-#define __extension__
 #define  __attribute__(x)
 typedef void *__builtin_va_list;
 #define __extension__
@@ -32,8 +31,6 @@ typedef void *__builtin_va_list;
 #define __inline__
 #define __asm__ 
 #define __volatile__
-#define _HAVE_STDC
-
 #define NEW_H
 
 
@@ -45,23 +42,10 @@ typedef void *__builtin_va_list;
 #define degrees(rad) ((rad)*RAD_TO_DEG)
 #define sq(x) ((x)*(x))
 
-#define __arm__
-#define __ARM__
-#define __extension__
-#define  __attribute__(x)
-typedef void *__builtin_va_list;
-#define __extension__
-#define __ATTR_PURE__
-#define __ATTR_CONST__
-#define __inline__
-#define __asm__ 
-#define __volatile__
-
 #define __disable_irq() __asm__ volatile("");
 #define __enable_irq()	__asm__ volatile("");
 
 
-#define NEW_H
 #include "PlayDice.ino"
 #endif
 #endif

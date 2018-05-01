@@ -42,6 +42,7 @@ static uint8_t bufferprev[SSD1306_LCDHEIGHT * SSD1306_LCDWIDTH / 8]; // DW
 
 #define ssd1306_swap(a, b) { int16_t t = a; a = b; b = t; }
 
+
 // the most basic function, set a single pixel
 void Adafruit_SSD1306::drawPixel(int16_t x, int16_t y, uint16_t color) {
 	if ((x < 0) || (x >= width()) || (y < 0) || (y >= height()))
@@ -90,11 +91,14 @@ Adafruit_SSD1306::Adafruit_SSD1306(int8_t DC, int8_t RST, int8_t CS) : Adafruit_
 	hwSPI = true;
 }
 
+
 // initializer for I2C - we only indicate the reset pin!
 Adafruit_SSD1306::Adafruit_SSD1306(int8_t reset) :
 	Adafruit_GFX(SSD1306_LCDWIDTH, SSD1306_LCDHEIGHT) {
 	sclk = dc = cs = sid = -1;
 	rst = reset;
+	//delay(500);
+	//Serial.print("xconstructor sid: "); Serial.println(sclk);  Serial.print(" h: "); Serial.println(SSD1306_LCDHEIGHT);
 }
 
 
@@ -102,6 +106,7 @@ void Adafruit_SSD1306::begin(uint8_t vccstate, uint8_t i2caddr, bool reset) {
 	_vccstate = vccstate;
 	_i2caddr = i2caddr;
 	forceUpdate = 1;
+//	Serial.print("begin sid: "); Serial.println(sclk);  Serial.print(" h: "); Serial.println(SSD1306_LCDHEIGHT);
 
 	// set pin directions
 	if (sid != -1) {
@@ -380,45 +385,86 @@ boolean Adafruit_SSD1306::display(void) {
 	if (forceUpdate == 0 && std::equal(std::begin(buffer), std::end(buffer), std::begin(bufferprev))) {
 		return 0;
 	}
-	
+
 	if (sid != -1)
 	{
-		ssd1306_command(SSD1306_COLUMNADDR);
-		ssd1306_command(0);   // Column start address (0 = reset)
-		ssd1306_command(SSD1306_LCDWIDTH - 1); // Column end address (127 = reset)
+		if (forceUpdate == 0) {
+			// DW use page mode so we can draw only changes
+			if (screenMode != 0x02) {
+				ssd1306_command(0x20);		// OLED_CMD_SET_MEMORY_ADDR_MODE
+				ssd1306_command(0x02);		// 0x00 = HORZ mode ; 0x01 = VERT ; 0x02 = PAGE
+				screenMode = 0x02;
+			}
+			uint16_t b = 0;
+			for (uint16_t row = 0; row < 8; row++) { //row - top to bottom
+				ssd1306_command(0xB0 + row);		// B0~B7 row to start on (called 'page' in docs)
 
-		ssd1306_command(SSD1306_PAGEADDR);
-		ssd1306_command(0); // Page start address (0 = reset)
-		ssd1306_command(7); // Page end address
+				const uint16_t blockSize = 8;		// to adjust trade off between updating more blocks versus each block being smaller
+				for (uint16_t i = 0; i < blockSize; i++) {	// column - left to right
 
-		// SPI
-#ifdef HAVE_PORTREG
-		*csport |= cspinmask;
-		*dcport |= dcpinmask;
-		*csport &= ~cspinmask;
-#else
-		digitalWrite(cs, HIGH);
-		digitalWrite(dc, HIGH);
-		digitalWrite(cs, LOW);
-#endif
+															// test if block has changed to see if we need to redraw
+					boolean changed = 0;
+					for (uint8_t x = 0; x < 128 / blockSize; x++) {	// 16 vertical strips from left to right
+						if (buffer[b + x] != bufferprev[b + x]) {
+							bufferprev[b + x] = buffer[b + x];
+							changed = 1;
+						}
+					}
 
-		for (uint16_t i = 0; i < (SSD1306_LCDWIDTH*SSD1306_LCDHEIGHT / 8); i++) {
-			fastSPIwrite(buffer[i]);
+					if (changed) {
+						//Serial.print("Refresh block "); Serial.println(b);
+						uint8_t highbyte = ((b % 128) >> 4);
+						uint8_t lowbyte = (b % 128) - (highbyte << 4);
+
+						digitalWrite(cs, HIGH);
+						digitalWrite(dc, LOW);
+						digitalWrite(cs, LOW);
+
+						fastSPIwrite(lowbyte);			// 00~0F Lower byte Column Start Address for Page Addressing Mode 
+						fastSPIwrite(0x10 + highbyte);	// 10~1F Higher byte Column Start Address for Page Addressing Mode 
+
+						digitalWrite(cs, HIGH);
+						digitalWrite(dc, HIGH);
+						digitalWrite(cs, LOW);
+
+						for (uint8_t x = 0; x < 128 / blockSize; x++) {	// 8 vertical strips from left to right
+							fastSPIwrite(buffer[b]);
+							b++;
+						}
+						digitalWrite(cs, HIGH);
+
+					}
+					else {
+						b += 128 / blockSize;
+					}
+				}
+			}
+
 		}
-#ifdef HAVE_PORTREG
-		*csport |= cspinmask;
-#else
-		digitalWrite(cs, HIGH);
-#endif
+		else {
+			Serial.println("full update");
+			ssd1306_command(SSD1306_COLUMNADDR);
+			ssd1306_command(0);   // Column start address (0 = reset)
+			ssd1306_command(SSD1306_LCDWIDTH - 1); // Column end address (127 = reset)
+
+			ssd1306_command(SSD1306_PAGEADDR);
+			ssd1306_command(0); // Page start address (0 = reset)
+			ssd1306_command(7); // Page end address
+
+			digitalWrite(cs, HIGH);
+			digitalWrite(dc, HIGH);
+			digitalWrite(cs, LOW);
+
+			for (uint16_t i = 0; i < (SSD1306_LCDWIDTH*SSD1306_LCDHEIGHT / 8); i++) {
+				fastSPIwrite(buffer[i]);
+			}
+			digitalWrite(cs, HIGH);
+			std::copy(std::begin(buffer), std::end(buffer), std::begin(bufferprev));
+
+		}
 	}
-	else
-	{
-		// save I2C bitrate
-#ifdef TWBR
-		uint8_t twbrbackup = TWBR;
-		TWBR = 12; // upgrade to 400KHz!
-		Serial.println(TWBR);
-#endif
+	else {
+
 
 		// I2C
 		if (forceUpdate == 0) {
@@ -488,7 +534,7 @@ boolean Adafruit_SSD1306::display(void) {
 				Wire.endTransmission();
 				screenMode = 0x00;
 			}
-			
+
 			ssd1306_command(SSD1306_COLUMNADDR);
 			ssd1306_command(0);   // Column start address (0 = reset)
 			ssd1306_command(SSD1306_LCDWIDTH - 1); // Column end address (127 = reset)
@@ -496,7 +542,7 @@ boolean Adafruit_SSD1306::display(void) {
 			ssd1306_command(SSD1306_PAGEADDR);
 			ssd1306_command(0); // Page start address (0 = reset)
 			ssd1306_command(7); // Page end address
-			
+
 			//Serial.println("Force Update");
 			for (uint16_t i = 0; i < (SSD1306_LCDWIDTH*SSD1306_LCDHEIGHT / 8); i++) {
 				// send a bunch of data in one xmission
@@ -512,15 +558,12 @@ boolean Adafruit_SSD1306::display(void) {
 			std::copy(std::begin(buffer), std::end(buffer), std::begin(bufferprev));
 		}
 
-		// DW - capture previous buffer to check for changes
-		forceUpdate = 0;
 
-#ifdef TWBR
-		TWBR = twbrbackup;
-#endif
 	}
+	// DW - capture previous buffer to check for changes
+	forceUpdate = 0;
 	return 1;
-	}
+}
 
 // clear everything
 void Adafruit_SSD1306::clearDisplay(void) {
@@ -546,8 +589,8 @@ inline void Adafruit_SSD1306::fastSPIwrite(uint8_t d) {
 			else        digitalWrite(sid, LOW);
 			digitalWrite(sclk, HIGH);
 #endif
-		}
 	}
+}
 }
 
 void Adafruit_SSD1306::drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color) {

@@ -1,5 +1,3 @@
-// Settings.h
-
 #ifndef _SETTINGS_h
 #define _SETTINGS_h
 
@@ -10,22 +8,22 @@
 #endif
 
 #define LED 13
-//#define CLOCKPIN 0
-#define CLOCKPIN 14
-#define TEMPOPIN 9		// analog pin 9 A9
-#define DACPIN 40
-#define BTNACTION 9		// digital pin 9
-#define BTNUPPIN 1
-#define BTNDNPIN 0
-#define BTNENCPIN 2
+#define CLOCKPIN 14		// incoming voltage clock
+#define TEMPOPIN 9		// analog pin 9 A9 - pot for controlling clock manually
 #define ENCCLKPIN 5
 #define ENCDATAPIN 6
-#define OLED_RESET 4
-#define GATEOUT 16
+#define GATEOUT 16		// Gate sequence out
+#define DACPIN 40		// CV sequence out
+
+#define OLED_MOSI  11
+#define OLED_CLK   20
+#define OLED_DC    8
+#define OLED_CS    10
+#define OLED_RESET 9
 
 enum refreshType { REFRESHOFF, REFRESHFULL, REFRESHTOP, REFRESHBOTTOM };
 enum editType { STEPV, STEPR, STUTTER, SEQS, SEQMODE, PATTERN };		// STEPV allows deep editing of voltage; STEPR - editing random level; STUTTER - choose stutter speed, PATTERN - choose pattern
-
+ 
 // define structures to store sequence data
 struct CvStep {
 	float volts;

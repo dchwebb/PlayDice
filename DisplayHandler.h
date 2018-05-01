@@ -19,10 +19,8 @@ extern seqMode cvLoopMode;
 extern uint8_t numSeqB;
 extern seqMode gateLoopMode;
 extern seqType activeSeq;
-extern uint32_t lastEditing;
 extern CvPatterns cv;
 extern GatePatterns gate;
-extern uint8_t buffer[];
 
 extern float getRandLimit(CvStep s, rndType getUpper);
 extern boolean checkEditing();
@@ -30,11 +28,7 @@ extern ClockHandler clock;
 
 class DisplayHandler {
 public:
-	DisplayHandler() {
-		Adafruit_SSD1306 display(OLED_RESET);
-	};
-	int displayRefresh;
-	void setDisplayRefresh(int requestedRefresh);
+	DisplayHandler();
 	void updateDisplay();
 	void init();
 	int cvVertPos(float voltage);
@@ -47,24 +41,15 @@ private:
 	uint32_t frameStart;
 };
 
-
-//	request a display refresh - set the area of the screen that needs refreshing next time a refresh is available
-void DisplayHandler::setDisplayRefresh(int requestedRefresh) {
-
-	//	if previously requested update is top and now requesting bottom refresh all (and viece versa) - otherwise set refresh type to passed value
-	if ((displayRefresh == REFRESHTOP && requestedRefresh == REFRESHBOTTOM) || (displayRefresh == REFRESHBOTTOM && requestedRefresh == REFRESHTOP)) {
-		displayRefresh = REFRESHFULL;
-	}
-	else {
-		displayRefresh = requestedRefresh;
-	}
+//	Putting the constructor here with display class initialised after colon ensures that correct constructor gets called and does not blank settings
+DisplayHandler::DisplayHandler():
+	display(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS) {
 }
-
 
 // carry out the screen refresh building the various UI elements
 void DisplayHandler::updateDisplay() {
 	if (DEBUGFRAME) {
-		frameStart = millis();
+		frameStart = micros();
 	}
 
 	boolean editing = checkEditing();		// set to true if currently editing to show detailed parameters
@@ -113,9 +98,21 @@ void DisplayHandler::updateDisplay() {
 
 		// Draw CV pattern
 		if (!editing || activeSeq == SEQCV) {
-			// Draw voltage line showing randomisation by using a vertical dotted line
-			display.fillRect(voltHPos + 2, voltVPos, 8, 2, WHITE);
+			// Draw voltage line 
 
+			if (cv.seq[cvSeqNo].Steps[i].stutter > 0) {
+				float w = (float)12 / cv.seq[cvSeqNo].Steps[i].stutter;
+
+				for (int sd = 0; sd < cv.seq[cvSeqNo].Steps[i].stutter; sd++) {
+					// draw jagged stripes showing stutter pattern
+					display.fillRect(voltHPos + round(sd * w), voltVPos + (sd % 2 ? 0 : 1), round(w), 2, WHITE);
+				}
+			}
+			else {
+				display.fillRect(voltHPos + 2, voltVPos, 8, 2, WHITE);
+			}
+
+			//	show randomisation by using a vertical dotted line with height proportional to amount of randomisation
 			if (cv.seq[cvSeqNo].Steps[i].rand_amt > 0) {
 				float randLower = constrain(getRandLimit(cv.seq[cvSeqNo].Steps[i], LOWER), 0, 5);
 				float randUpper = constrain(getRandLimit(cv.seq[cvSeqNo].Steps[i], UPPER), 0, 5);
@@ -139,15 +136,9 @@ void DisplayHandler::updateDisplay() {
 						// draw base line
 						display.drawFastHLine(voltHPos + 3, 63, 8, WHITE);
 						float w = (float)8 / gate.seq[gateSeqNo].Steps[i].stutter;
-						// handle more variable changing bugs - sd seems to jump around if initialised in the for loop
-						int sd;
-						sd = 0;
-						for (sd = 0; sd < round((float)gate.seq[gateSeqNo].Steps[i].stutter / 2); sd++) {
+						for (int sd = 0; sd < round((float)gate.seq[gateSeqNo].Steps[i].stutter / 2); sd++) {
 							// draw vertical stripes showing stutter layout - if gate is off then stutter starts later														
 							display.fillRect(voltHPos + 3 + (gate.seq[gateSeqNo].Steps[i].on ? 0 : round(w)) + (sd * round(w * 2)), 50, round(w), 14, WHITE);
-							
-							//Serial.print("x on: ");  Serial.println(voltHPos + 3 + (sd * round(w * 2)));
-							//Serial.print("x off: ");  Serial.println(voltHPos + 3 + (gate.seq[gateSeqNo].Steps[i].on ? 0 : round(w)) + (sd * round(w * 2)));
 						}
 					}
 					else {
@@ -213,12 +204,9 @@ void DisplayHandler::updateDisplay() {
 	}
 
 	if (display.display() && DEBUGFRAME) {
-		Serial.print("Frame start: "); Serial.print(frameStart); Serial.print(" end: "); Serial.print(millis()); Serial.print(" time: "); Serial.println(millis() - frameStart);
+		Serial.print("Frame start: "); Serial.print(frameStart); Serial.print(" end: "); Serial.print(micros()); Serial.print(" time: "); Serial.println(micros() - frameStart);
 	}
-
-	displayRefresh = REFRESHOFF;
 }
-
 
 
 //	returns the vertical position of a voltage line on the cv channel display
