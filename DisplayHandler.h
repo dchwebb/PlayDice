@@ -3,6 +3,7 @@
 #include "Adafruit_SSD1306.h"
 #include "Settings.h"
 #include "WString.h"
+#include <array>
 
 extern const boolean DEBUGFRAME;
 
@@ -14,13 +15,17 @@ extern float cvRandVal;
 extern boolean gateRandVal;
 extern uint8_t cvSeqNo;
 extern uint8_t gateSeqNo;
-extern uint8_t numSeqA;
-extern seqMode cvLoopMode;
-extern uint8_t numSeqB;
-extern seqMode gateLoopMode;
 extern seqType activeSeq;
 extern CvPatterns cv;
 extern GatePatterns gate;
+extern uint8_t cvLoopFirst;		// first sequence in loop
+extern uint8_t cvLoopLast;			// last sequence in loop
+extern uint8_t gateLoopFirst;		// first sequence in loop
+extern uint8_t gateLoopLast;			// last sequence in loop
+//extern MenuItem menu[];
+extern std::array<MenuItem, 3> menu;
+
+extern int menuSize;
 
 extern float getRandLimit(CvStep s, rndType getUpper);
 extern boolean checkEditing();
@@ -34,7 +39,10 @@ public:
 	int cvVertPos(float voltage);
 	void drawDottedVLine(int16_t x, int16_t y, int16_t h, uint16_t color);
 	//void drawParam(const char s[], float v, int16_t x, int16_t y, uint16_t w, boolean selected);
-	void drawParam(const char s[], String v, int16_t x, int16_t y, uint16_t w, boolean selected);
+	void drawParam(String s, String v, uint8_t x, uint8_t y, uint8_t w, boolean selected, uint8_t highlightX, uint8_t highlightY, uint8_t highlightW);
+	void drawParam(String s, String v, uint8_t x, uint8_t y, uint8_t w, boolean selected);
+	void displayLanes();
+	void setupMenu();
 	Adafruit_SSD1306 display;
 private:
 	long clockSignal;
@@ -42,23 +50,68 @@ private:
 };
 
 //	Putting the constructor here with display class initialised after colon ensures that correct constructor gets called and does not blank settings
-DisplayHandler::DisplayHandler():
+DisplayHandler::DisplayHandler() :
 	display(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS) {
 }
+
 
 // carry out the screen refresh building the various UI elements
 void DisplayHandler::updateDisplay() {
 	if (DEBUGFRAME) {
 		frameStart = micros();
 	}
-
-	boolean editing = checkEditing();		// set to true if currently editing to show detailed parameters
-
 	display.clearDisplay();
-
-	//	Write the sequence number for CV and gate sequence
 	display.setTextSize(1);
 
+	if (editMode == SETUP) {
+		setupMenu();
+	}
+	else {
+		displayLanes();
+	}
+
+	if (display.display() && DEBUGFRAME) {
+		Serial.print("Frame start: "); Serial.print(frameStart); Serial.print(" end: "); Serial.print(micros()); Serial.print(" time: "); Serial.println(micros() - frameStart);
+	}
+}
+
+//	Display setup menu
+void DisplayHandler::setupMenu() {
+	display.drawRect(0, 0, 128, 64, WHITE);
+	display.setTextSize(1);
+	display.setCursor(50, 4);
+	display.print("Setup");
+	display.drawFastHLine(0, 15, 128, WHITE);
+	display.drawFastVLine(80, 15, 64, WHITE);
+
+	display.setCursor(85, 20);
+	display.print("BPM");
+	display.setCursor(85, 30);
+	display.print(bpm);
+
+	if (clock.hasSignal()) {
+		display.setCursor(85, 50);
+		display.print("Clock");
+	}
+
+
+	for (unsigned int m = 0; m < menu.size(); m++) {
+		display.setCursor(5, 20 + (m * 10));
+		display.print(menu[m].name);
+		String s = (String)menu[m].name;
+
+		//Serial.print("name: "); Serial.print(menu[m].name); Serial.print(" len: "); Serial.print(s.length());
+		if (menu[m].selected) {
+			display.fillRect(3, 19 + (m * 10), menu[m].name.length() * 7, 10, INVERSE);
+		}
+	}
+}
+
+//	Display CV and Gate Lanes
+void DisplayHandler::displayLanes() {
+	boolean editing = checkEditing();		// set to true if currently editing to show detailed parameters
+	//Serial.print("editing: "); Serial.println(editing);
+	//	Write the sequence number for CV and gate sequence
 	if (!editing || activeSeq == SEQCV) {
 		display.setCursor(0, 0);
 		display.print("cv");
@@ -121,7 +174,7 @@ void DisplayHandler::updateDisplay() {
 			// draw amount of voltage selected after randomisation applied
 			if (seqStep == i) {
 				display.fillRect(voltHPos, round(26 - (cvRandVal * 5)), 13, 4, WHITE);
-			}		
+			}
 		}
 
 		// Draw gate pattern 
@@ -132,7 +185,7 @@ void DisplayHandler::updateDisplay() {
 				}
 				else {
 					if (gate.seq[gateSeqNo].Steps[i].stutter > 0) {
-						
+
 						// draw base line
 						display.drawFastHLine(voltHPos + 3, 63, 8, WHITE);
 						float w = (float)8 / gate.seq[gateSeqNo].Steps[i].stutter;
@@ -181,10 +234,10 @@ void DisplayHandler::updateDisplay() {
 				drawParam("Stutter", String(gate.seq[gateSeqNo].Steps[editStep].stutter), 81, 0, 47, editMode == STUTTER);
 			}
 
-			if (editMode == PATTERN || editMode == SEQS || editMode == SEQMODE) {
-				drawParam("Pattern", String(gateSeqNo + 1), 0, 0, 49, editMode == PATTERN);
-				drawParam("Loop", String(gateLoopMode == LOOPCURRENT ? "ONE" : "ALL"), 52, 0, 34, editMode == SEQMODE);
-				drawParam("Loops", String(numSeqB), 90, 0, 34, editMode == SEQS);
+			if (editMode == PATTERN || editMode == LOOPFIRST || editMode == LOOPLAST || editMode == SEQEDIT) {
+				drawParam("Seq", String(gateSeqNo + 1), 0, 0, 35, editMode == PATTERN);
+				drawParam("Loop", String(gateLoopFirst + 1) + String(" - ") + String(gateLoopLast + 1), 38, 0, 38, editMode == LOOPFIRST || editMode == LOOPLAST, editMode == LOOPFIRST ? 40 : 64, 52, 9);
+				drawParam("Edit", String("Seq >"), 80, 0, 39, editMode == SEQEDIT);
 			}
 		}
 
@@ -195,17 +248,19 @@ void DisplayHandler::updateDisplay() {
 				drawParam("Stutter", String(cv.seq[cvSeqNo].Steps[editStep].stutter), 81, 40, 47, editMode == STUTTER);
 			}
 
-			if (editMode == PATTERN || editMode == SEQS || editMode == SEQMODE) {
-				drawParam("Pattern", String(cvSeqNo + 1), 0, 40, 49, editMode == PATTERN);
-				drawParam("Loop", String(cvLoopMode == LOOPCURRENT ? "ONE" : "ALL"), 52, 40, 34, editMode == SEQMODE);
-				drawParam("Loops", String(numSeqA), 90, 40, 34, editMode == SEQS);
+			if (editMode == PATTERN || editMode == LOOPFIRST || editMode == LOOPLAST || editMode == SEQEDIT) {
+				drawParam("Seq", String(cvSeqNo + 1), 0, 40, 35, editMode == PATTERN);
+				drawParam("Loop", String(cvLoopFirst + 1) + String(" - ") + String(cvLoopLast + 1), 38, 40, 38, editMode == LOOPFIRST || editMode == LOOPLAST, editMode == LOOPFIRST ? 40 : 64, 52, 9);
+				drawParam("Edit", String("Seq >"), 80, 40, 39, editMode == SEQEDIT);
+			}
+
+			if (editMode == STEPS || editMode == SEQINIT) {
+				drawParam("Steps", String(cv.seq[cvSeqNo].steps), 0, 40, 35, editMode == STEPS);
+				drawParam("Init", String("No"), 38, 40, 38, editMode == SEQINIT);
 			}
 		}
 	}
 
-	if (display.display() && DEBUGFRAME) {
-		Serial.print("Frame start: "); Serial.print(frameStart); Serial.print(" end: "); Serial.print(micros()); Serial.print(" time: "); Serial.println(micros() - frameStart);
-	}
 }
 
 
@@ -220,13 +275,21 @@ void DisplayHandler::drawDottedVLine(int16_t x, int16_t y, int16_t h, uint16_t c
 	}
 }
 
-void DisplayHandler::drawParam(const char s[], String v, int16_t x, int16_t y, uint16_t w, boolean selected) {
+void DisplayHandler::drawParam(String s, String v, uint8_t x, uint8_t y, uint8_t w, boolean selected) {
+	drawParam(s, v, x, y, w, selected, 0, 0, 0);
+}
+
+void DisplayHandler::drawParam(String s, String v, uint8_t x, uint8_t y, uint8_t w, boolean selected, uint8_t highlightX, uint8_t highlightY, uint8_t highlightW) {
 	display.setCursor(x + 4, y + 3);
 	display.println(s);
 	display.setCursor(x + 4, y + 13);
 	display.println(v);
 	if (selected) {
 		display.drawRect(x, y, w, 24, INVERSE);
+		if (highlightX > 0) {
+			Serial.println(highlightX);
+			display.fillRect(highlightX, y + 12, highlightW, 10, INVERSE);
+		}
 	}
 }
 

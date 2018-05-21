@@ -22,7 +22,7 @@
 #define OLED_RESET 9
 
 enum refreshType { REFRESHOFF, REFRESHFULL, REFRESHTOP, REFRESHBOTTOM };
-enum editType { STEPV, STEPR, STUTTER, SEQS, SEQMODE, PATTERN };		// STEPV allows deep editing of voltage; STEPR - editing random level; STUTTER - choose stutter speed, PATTERN - choose pattern
+enum editType { STEPV, STEPR, STUTTER, LOOPFIRST, LOOPLAST, PATTERN, SETUP, SEQEDIT, STEPS, SEQINIT };		// STEPV allows deep editing of voltage; STEPR - editing random level; STUTTER - choose stutter speed, PATTERN - choose pattern
  
 // define structures to store sequence data
 struct CvStep {
@@ -36,12 +36,10 @@ struct GateStep {
 	uint16_t stutter : 5;
 };
 struct CvSequence {
-	uint8_t mode : 4;		//	CURRENT - Loop current sequence, ALL - run through sequences
 	uint8_t steps : 4;		//  Number of steps in sequence
 	struct CvStep Steps[8];
 };
 struct GateSequence {
-	uint8_t mode : 4;		//	CURRENT - Loop current sequence, ALL - run through sequences
 	uint8_t steps : 4;		//  Number of steps in sequence
 	struct GateStep Steps[8];
 };
@@ -62,17 +60,20 @@ struct Btn {
 	int name;
 	int pin;
 	boolean pressed;
-	int lastPressed;
+	boolean released;
+	boolean longClick;
+	uint32_t lastPressed;
 };
-enum btnName { STEPUP, STEPDN, ENCODER, ACTION };
+enum btnName { STEPUP, STEPDN, ENCODER, CHANNEL, ACTION, ENCUP, ENCDN };
 
-/*
-class Settings {
-public:
-	enum refreshType2 { REFRESHOFF, REFRESHFULL, REFRESHTOP, REFRESHBOTTOM };
-
-
+struct MenuItem {
+	int val;
+	String name;
+	boolean selected;
 };
-*/
+
+
+enum menuItems { EXIT, SAVE };
+
 #endif
 

@@ -432,14 +432,15 @@ boolean Adafruit_SSD1306::display(void) {
 							b++;
 						}
 						digitalWrite(cs, HIGH);
-
+						
+						// returning after each block update results in more but significantly faster updates
+						return 1;
 					}
 					else {
 						b += 128 / blockSize;
 					}
 				}
 			}
-
 		}
 		else {
 			Serial.println("full update");
