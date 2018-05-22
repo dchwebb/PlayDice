@@ -8,7 +8,8 @@
 extern const boolean DEBUGFRAME;
 
 extern uint16_t bpm;
-extern int8_t seqStep;
+extern int8_t cvStep;
+extern int8_t gateStep;
 extern int8_t editStep;
 extern editType editMode;
 extern float cvRandVal;
@@ -38,8 +39,7 @@ public:
 	void init();
 	int cvVertPos(float voltage);
 	void drawDottedVLine(int16_t x, int16_t y, int16_t h, uint16_t color);
-	//void drawParam(const char s[], float v, int16_t x, int16_t y, uint16_t w, boolean selected);
-	void drawParam(String s, String v, uint8_t x, uint8_t y, uint8_t w, boolean selected, uint8_t highlightX, uint8_t highlightY, uint8_t highlightW);
+	void drawParam(String s, String v, uint8_t x, uint8_t y, uint8_t w, boolean selected, uint8_t highlightX, uint8_t highlightW);
 	void drawParam(String s, String v, uint8_t x, uint8_t y, uint8_t w, boolean selected);
 	void displayLanes();
 	void setupMenu();
@@ -110,7 +110,7 @@ void DisplayHandler::setupMenu() {
 //	Display CV and Gate Lanes
 void DisplayHandler::displayLanes() {
 	boolean editing = checkEditing();		// set to true if currently editing to show detailed parameters
-	//Serial.print("editing: "); Serial.println(editing);
+
 	//	Write the sequence number for CV and gate sequence
 	if (!editing || activeSeq == SEQCV) {
 		display.setCursor(0, 0);
@@ -151,59 +151,75 @@ void DisplayHandler::displayLanes() {
 
 		// Draw CV pattern
 		if (!editing || activeSeq == SEQCV) {
-			// Draw voltage line 
 
-			if (cv.seq[cvSeqNo].Steps[i].stutter > 0) {
-				float w = (float)12 / cv.seq[cvSeqNo].Steps[i].stutter;
-
-				for (int sd = 0; sd < cv.seq[cvSeqNo].Steps[i].stutter; sd++) {
-					// draw jagged stripes showing stutter pattern
-					display.fillRect(voltHPos + round(sd * w), voltVPos + (sd % 2 ? 0 : 1), round(w), 2, WHITE);
-				}
+			//	Show a dot where there is an unplayed step
+			if (i + 1 > cv.seq[cvSeqNo].steps) {
+				display.fillRect(voltHPos + 5, 30, 1, 1, WHITE);
 			}
 			else {
-				display.fillRect(voltHPos + 2, voltVPos, 8, 2, WHITE);
-			}
+				// Draw voltage line 
+				if (cv.seq[cvSeqNo].Steps[i].stutter > 0) {
+					float w = (float)12 / cv.seq[cvSeqNo].Steps[i].stutter;
 
-			//	show randomisation by using a vertical dotted line with height proportional to amount of randomisation
-			if (cv.seq[cvSeqNo].Steps[i].rand_amt > 0) {
-				float randLower = constrain(getRandLimit(cv.seq[cvSeqNo].Steps[i], LOWER), 0, 5);
-				float randUpper = constrain(getRandLimit(cv.seq[cvSeqNo].Steps[i], UPPER), 0, 5);
-				drawDottedVLine(voltHPos, 2 + cvVertPos(randUpper), 1 + cvVertPos(randLower) - cvVertPos(randUpper), WHITE);
+					for (int sd = 0; sd < cv.seq[cvSeqNo].Steps[i].stutter; sd++) {
+						// draw jagged stripes showing stutter pattern
+						display.fillRect(voltHPos + round(sd * w), voltVPos + (sd % 2 ? 0 : 1), round(w), 2, WHITE);
+					}
+				}
+				else {
+					display.fillRect(voltHPos + 2, voltVPos, 8, 2, WHITE);
+				}
+
+				//	show randomisation by using a vertical dotted line with height proportional to amount of randomisation
+				if (cv.seq[cvSeqNo].Steps[i].rand_amt > 0) {
+					float randLower = constrain(getRandLimit(cv.seq[cvSeqNo].Steps[i], LOWER), 0, 5);
+					float randUpper = constrain(getRandLimit(cv.seq[cvSeqNo].Steps[i], UPPER), 0, 5);
+					drawDottedVLine(voltHPos, 2 + cvVertPos(randUpper), 1 + cvVertPos(randLower) - cvVertPos(randUpper), WHITE);
+				}
+				// draw amount of voltage selected after randomisation applied
+				if (cvStep == i) {
+					display.fillRect(voltHPos, round(26 - (cvRandVal * 5)), 13, 4, WHITE);
+				}
 			}
-			// draw amount of voltage selected after randomisation applied
-			if (seqStep == i) {
-				display.fillRect(voltHPos, round(26 - (cvRandVal * 5)), 13, 4, WHITE);
-			}
+		
 		}
 
 		// Draw gate pattern 
 		if (!editing || activeSeq == SEQGATE) {
-			if (gate.seq[gateSeqNo].Steps[i].on || gate.seq[gateSeqNo].Steps[i].stutter > 0) {
-				if (seqStep == i && !gateRandVal) {
-					display.drawRect(voltHPos + 4, 50, 6, 14, WHITE);		// draw gate as empty rectange for current step if set 'on' but randomised 'off'
-				}
-				else {
-					if (gate.seq[gateSeqNo].Steps[i].stutter > 0) {
 
-						// draw base line
-						display.drawFastHLine(voltHPos + 3, 63, 8, WHITE);
-						float w = (float)8 / gate.seq[gateSeqNo].Steps[i].stutter;
-						for (int sd = 0; sd < round((float)gate.seq[gateSeqNo].Steps[i].stutter / 2); sd++) {
-							// draw vertical stripes showing stutter layout - if gate is off then stutter starts later														
-							display.fillRect(voltHPos + 3 + (gate.seq[gateSeqNo].Steps[i].on ? 0 : round(w)) + (sd * round(w * 2)), 50, round(w), 14, WHITE);
-						}
-					}
-					else {
-						display.fillRect(voltHPos + 4, 50, 6, 14, WHITE);
-					}
-				}
+			//	Show a dot where there is an unplayed step
+			if (i + 1 > gate.seq[gateSeqNo].steps) {
+				display.fillRect(voltHPos + 5, 63, 1, 1, WHITE);
 			}
 			else {
-				display.fillRect(voltHPos + 4, 63, 6, 1, WHITE);
+
+				if (gate.seq[gateSeqNo].Steps[i].on || gate.seq[gateSeqNo].Steps[i].stutter > 0) {
+					if (gateStep == i && !gateRandVal) {
+						display.drawRect(voltHPos + 4, 50, 6, 14, WHITE);		// draw gate as empty rectange for current step if set 'on' but randomised 'off'
+					}
+					else {
+						if (gate.seq[gateSeqNo].Steps[i].stutter > 0) {
+
+							// draw base line
+							display.drawFastHLine(voltHPos + 3, 63, 8, WHITE);
+							float w = (float)8 / gate.seq[gateSeqNo].Steps[i].stutter;
+							for (int sd = 0; sd < round((float)gate.seq[gateSeqNo].Steps[i].stutter / 2); sd++) {
+								// draw vertical stripes showing stutter layout - if gate is off then stutter starts later														
+								display.fillRect(voltHPos + 3 + (gate.seq[gateSeqNo].Steps[i].on ? 0 : round(w)) + (sd * round(w * 2)), 50, round(w), 14, WHITE);
+							}
+						}
+						else {
+							display.fillRect(voltHPos + 4, 50, 6, 14, WHITE);
+						}
+					}
+				}
+				else {
+					display.fillRect(voltHPos + 4, 63, 6, 1, WHITE);
+				}
 			}
+
 			// draw current step - larger block if 'on' larger base if 'off'
-			if (seqStep == i) {
+			if (gateStep == i) {
 				if (gateRandVal) {
 					display.fillRect(voltHPos + 3, 45, 8, 29, WHITE);
 				}
@@ -222,7 +238,6 @@ void DisplayHandler::displayLanes() {
 			display.drawLine(voltHPos + 4, activeSeq == SEQCV ? 34 : 32, voltHPos + 6, activeSeq == SEQCV ? 32 : 34, WHITE);
 			display.drawLine(voltHPos + 6, activeSeq == SEQCV ? 32 : 34, voltHPos + 8, activeSeq == SEQCV ? 34 : 32, WHITE);
 		}
-
 	}
 
 	//	if currently or recently editing show values in bottom area of screen
@@ -234,10 +249,10 @@ void DisplayHandler::displayLanes() {
 				drawParam("Stutter", String(gate.seq[gateSeqNo].Steps[editStep].stutter), 81, 0, 47, editMode == STUTTER);
 			}
 
-			if (editMode == PATTERN || editMode == LOOPFIRST || editMode == LOOPLAST || editMode == SEQEDIT) {
-				drawParam("Seq", String(gateSeqNo + 1), 0, 0, 35, editMode == PATTERN);
-				drawParam("Loop", String(gateLoopFirst + 1) + String(" - ") + String(gateLoopLast + 1), 38, 0, 38, editMode == LOOPFIRST || editMode == LOOPLAST, editMode == LOOPFIRST ? 40 : 64, 52, 9);
-				drawParam("Edit", String("Seq >"), 80, 0, 39, editMode == SEQEDIT);
+			if (editMode == LOOPFIRST || editMode == LOOPLAST || editMode == STEPS || editMode == SEQOPT || editMode == RANDALL || editMode == RANDVALS) {
+				drawParam("Steps", String(gate.seq[gateSeqNo].steps), 0, 0, 36, editMode == STEPS);
+				drawParam("Loop", String(gateLoopFirst + 1) + String(" - ") + String(gateLoopLast + 1), 38, 0, 38, editMode == LOOPFIRST || editMode == LOOPLAST, editMode == LOOPFIRST ? 40 : 64, 9);
+				drawParam("Rand", String(editMode == RANDALL ? "All >" : (editMode == RANDVALS ? "Vals > " : "None >")), 80, 0, 42, editMode == SEQOPT || editMode == RANDALL || editMode == RANDVALS, 82, 38);
 			}
 		}
 
@@ -248,19 +263,16 @@ void DisplayHandler::displayLanes() {
 				drawParam("Stutter", String(cv.seq[cvSeqNo].Steps[editStep].stutter), 81, 40, 47, editMode == STUTTER);
 			}
 
-			if (editMode == PATTERN || editMode == LOOPFIRST || editMode == LOOPLAST || editMode == SEQEDIT) {
-				drawParam("Seq", String(cvSeqNo + 1), 0, 40, 35, editMode == PATTERN);
-				drawParam("Loop", String(cvLoopFirst + 1) + String(" - ") + String(cvLoopLast + 1), 38, 40, 38, editMode == LOOPFIRST || editMode == LOOPLAST, editMode == LOOPFIRST ? 40 : 64, 52, 9);
-				drawParam("Edit", String("Seq >"), 80, 40, 39, editMode == SEQEDIT);
+			if (editMode == LOOPFIRST || editMode == LOOPLAST || editMode == STEPS || editMode == SEQOPT || editMode == RANDALL || editMode == RANDVALS) {
+				drawParam("Steps", String(cv.seq[cvSeqNo].steps), 0, 40, 36, editMode == STEPS);
+				drawParam("Loop", String(cvLoopFirst + 1) + String(" - ") + String(cvLoopLast + 1), 38, 40, 38, editMode == LOOPFIRST || editMode == LOOPLAST, editMode == LOOPFIRST ? 40 : 64, 9);
+				drawParam("Rand", String(editMode == RANDALL ? "All >" : (editMode == RANDVALS ? "Vals > " : "None >")), 80, 40, 42, editMode == SEQOPT || editMode == RANDALL || editMode == RANDVALS, 82, 38);
+				//display.setCursor(120, 50);
+				//display.write(25);		// writes an arrow from the Adafruit library
 			}
 
-			if (editMode == STEPS || editMode == SEQINIT) {
-				drawParam("Steps", String(cv.seq[cvSeqNo].steps), 0, 40, 35, editMode == STEPS);
-				drawParam("Init", String("No"), 38, 40, 38, editMode == SEQINIT);
-			}
 		}
 	}
-
 }
 
 
@@ -276,10 +288,10 @@ void DisplayHandler::drawDottedVLine(int16_t x, int16_t y, int16_t h, uint16_t c
 }
 
 void DisplayHandler::drawParam(String s, String v, uint8_t x, uint8_t y, uint8_t w, boolean selected) {
-	drawParam(s, v, x, y, w, selected, 0, 0, 0);
+	drawParam(s, v, x, y, w, selected, 0, 0);
 }
 
-void DisplayHandler::drawParam(String s, String v, uint8_t x, uint8_t y, uint8_t w, boolean selected, uint8_t highlightX, uint8_t highlightY, uint8_t highlightW) {
+void DisplayHandler::drawParam(String s, String v, uint8_t x, uint8_t y, uint8_t w, boolean selected, uint8_t highlightX, uint8_t highlightW) {
 	display.setCursor(x + 4, y + 3);
 	display.println(s);
 	display.setCursor(x + 4, y + 13);

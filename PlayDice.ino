@@ -6,9 +6,8 @@
 #include "DisplayHandler.h"
 #include "Settings.h"
 #include <array>
-//#include <vector>
 #include <algorithm>
-//#include <stdio.h>
+
 
 const boolean DEBUGCLOCK = 0;
 const boolean DEBUGSTEPS = 0;
@@ -34,10 +33,11 @@ uint8_t gateStutterStep;		// if a step is in stutter mode store the count of the
 uint8_t cvSeqNo = 0;			// store the sequence number for CV patterns
 uint8_t gateSeqNo = 0;			// store the sequence number for Gate patterns
 uint8_t cvLoopFirst = 0;		// first sequence in loop
-uint8_t cvLoopLast = 1;			// last sequence in loop
+uint8_t cvLoopLast = 0;			// last sequence in loop
 uint8_t gateLoopFirst = 0;		// first sequence in loop
-uint8_t gateLoopLast = 1;		// last sequence in loop
-int8_t seqStep = -1;			// increments each step of sequence
+uint8_t gateLoopLast = 0;		// last sequence in loop
+int8_t cvStep = -1;				// increments each step of cv sequence
+int8_t gateStep = -1;			// increments each step of gate sequence
 int8_t editStep = 0;			// store which step is currently selected for editing (-1 = choose seq, 0-7 are the sequence steps)
 editType editMode = STEPV;		// enum editType - eg editing voltage, random amts etc
 seqType activeSeq = SEQCV;		// whether the CV or Gate rows is active for editing
@@ -53,7 +53,6 @@ Btn btns[] = { { STEPDN, 0 },{ STEPUP, 1 },{ ENCODER, 2 },{ CHANNEL, 3 },{ ACTIO
 std::array<MenuItem, 3> menu{ { { 0, "< Back", 1 },{ 1, "Save" },{ 2, "Stuff" } } };
 int menuSize = menu.size();
 
-int stutterArray[] = { 0, 2, 3, 4, 6, 8 };
 Encoder myEnc(ENCCLKPIN, ENCDATAPIN);
 ClockHandler clock(minBPM, maxBPM);
 DisplayHandler dispHandler;
@@ -63,8 +62,14 @@ void initCvSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
 	cv.seq[seqNum].steps = numSteps;
 	for (int s = 0; s < 8; s++) {
 		cv.seq[seqNum].Steps[s].volts = (initType == INITBLANK ? 2.5 : getRand() * 5);
-		cv.seq[seqNum].Steps[s].rand_amt = 0;		// (initType == INITBLANK ? 0 : round((getRand() * 10)));
-		cv.seq[seqNum].Steps[s].stutter = 0;
+		cv.seq[seqNum].Steps[s].rand_amt = (initType == INITRAND ? round((getRand() * 10)) : 0);
+		//	Don't want too many stutters so apply two random checks to see if apply stutter, and if so how much
+		if (initType == INITRAND && getRand() > 0.8) {
+			cv.seq[seqNum].Steps[s].stutter = round((getRand() * 7));
+		}
+		else {
+			cv.seq[seqNum].Steps[s].stutter = 0;
+		}
 	}
 }
 void initGateSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
@@ -72,8 +77,14 @@ void initGateSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
 	gate.seq[seqNum].steps = numSteps;
 	for (int s = 0; s < 8; s++) {
 		gate.seq[seqNum].Steps[s].on = (initType == INITBLANK ? 0 : round(getRand()));
-		gate.seq[seqNum].Steps[s].rand_amt = 0; // (initType == INITBLANK ? 0 : round(getRand() * 10));
-		gate.seq[seqNum].Steps[s].stutter = 0; // s == 0 ? 8 : 0;
+		gate.seq[seqNum].Steps[s].rand_amt = (initType == INITRAND ? round((getRand() * 10)) : 0);
+		//	Don't want too many stutters so apply two random checks to see if apply stutter, and if so how much
+		if (initType == INITRAND && getRand() > 0.8) {
+			gate.seq[seqNum].Steps[s].stutter = round((getRand() * 7));
+		}
+		else {
+			gate.seq[seqNum].Steps[s].stutter = 0;
+		}
 	}
 }
 
@@ -135,14 +146,14 @@ void loop() {
 	boolean newStep = (timeCounter >= timeStep && (!clock.hasSignal() || millis() - clock.clockHighTime < 10));
 
 	boolean newStutter = 0;
-	if (gateStutterStep > 0 && gateStutterStep < gate.seq[gateSeqNo].Steps[seqStep].stutter) {
-		if (timeCounter >= gateStutterStep * (timeStep / gate.seq[gateSeqNo].Steps[seqStep].stutter)) {
+	if (gateStutterStep > 0 && gateStutterStep < gate.seq[gateSeqNo].Steps[gateStep].stutter) {
+		if (timeCounter >= gateStutterStep * (timeStep / gate.seq[gateSeqNo].Steps[gateStep].stutter)) {
 			if (DEBUGSTEPS) { Serial.print("new stutter step: "); Serial.println(millis()); }
 			newStutter = 1;
 		}
 	}
-	if (cvStutterStep > 0 && cvStutterStep < cv.seq[cvSeqNo].Steps[seqStep].stutter) {
-		if (timeCounter >= cvStutterStep * (timeStep / cv.seq[cvSeqNo].Steps[seqStep].stutter)) {
+	if (cvStutterStep > 0 && cvStutterStep < cv.seq[cvSeqNo].Steps[cvStep].stutter) {
+		if (timeCounter >= cvStutterStep * (timeStep / cv.seq[cvSeqNo].Steps[cvStep].stutter)) {
 			if (DEBUGSTEPS) { Serial.print("new stutter step: "); Serial.println(millis()); }
 			newStutter = 1;
 		}
@@ -152,13 +163,17 @@ void loop() {
 	if (newStep || newStutter) {
 		//	increment sequence step and reinitialise stutter steps
 		if (newStep) {
-			seqStep += 1;
-			if (seqStep >= cv.seq[cvSeqNo].steps) {
-				seqStep = 0;
+			cvStep += 1;
+			if (cvStep >= cv.seq[cvSeqNo].steps) {
+				cvStep = 0;
 				if (!checkEditing() && cvLoopLast > cvLoopFirst) {
 					cvSeqNo = cvSeqNo++ >= cvLoopLast ? cvLoopFirst : cvSeqNo;
 					if (DEBUGSTEPS) { Serial.print("CV seq: "); Serial.println(cvSeqNo); }
 				}
+			}
+			gateStep += 1;
+			if (gateStep >= gate.seq[gateSeqNo].steps) {
+				gateStep = 0;
 				if (!checkEditing() && gateLoopLast > gateLoopFirst) {
 					gateSeqNo = gateSeqNo++ >= gateLoopLast ? gateLoopFirst : gateSeqNo;
 					if (DEBUGSTEPS) { Serial.print("Gate seq: "); Serial.println(gateSeqNo); }
@@ -166,13 +181,11 @@ void loop() {
 			}
 			cvStutterStep = 0;
 			gateStutterStep = 0;
-			if (DEBUGSTEPS) { Serial.print("new step: "); Serial.print(seqStep); Serial.print(" millis: "); Serial.println(millis()); }
+			if (DEBUGSTEPS) { Serial.print("new step: "); Serial.print(cvStep); Serial.print(" millis: "); Serial.println(millis()); }
 		}
 
 		//	guess the next step or stutter time to estimate if we have time to do a refresh
-
-		//guessNextStep = millis() + (gate.seq[gateSeqNo].Steps[seqStep].stutter ? (timeStep / gate.seq[gateSeqNo].Steps[seqStep].stutter) : timeStep);
-		guessNextStep = millis() + min((gate.seq[gateSeqNo].Steps[seqStep].stutter ? (timeStep / gate.seq[gateSeqNo].Steps[seqStep].stutter) : timeStep), (cv.seq[cvSeqNo].Steps[seqStep].stutter ? (timeStep / cv.seq[cvSeqNo].Steps[seqStep].stutter) : timeStep));
+		guessNextStep = millis() + min((gate.seq[gateSeqNo].Steps[gateStep].stutter ? (timeStep / gate.seq[gateSeqNo].Steps[gateStep].stutter) : timeStep), (cv.seq[cvSeqNo].Steps[cvStep].stutter ? (timeStep / cv.seq[cvSeqNo].Steps[cvStep].stutter) : timeStep));
 
 		if (DEBUGSTEPS) {
 			Serial.print("guess next step: "); Serial.println(guessNextStep);
@@ -180,15 +193,15 @@ void loop() {
 
 		// CV sequence: calculate possible ranges of randomness to ensure we don't try and set a random value out of permitted range
 		if (newStep || cvStutterStep > 0) {
-			if (cv.seq[cvSeqNo].Steps[seqStep].stutter > 0) {
+			if (cv.seq[cvSeqNo].Steps[cvStep].stutter > 0) {
 				cvStutterStep += 1;
 			}
-			float randLower = getRandLimit(cv.seq[cvSeqNo].Steps[seqStep], LOWER);
-			float randUpper = getRandLimit(cv.seq[cvSeqNo].Steps[seqStep], UPPER);
+			float randLower = getRandLimit(cv.seq[cvSeqNo].Steps[cvStep], LOWER);
+			float randUpper = getRandLimit(cv.seq[cvSeqNo].Steps[cvStep], UPPER);
 			cvRandVal = constrain(randLower + (getRand() * (randUpper - randLower)), 0, voltsMax);
 			setCV(cvRandVal);
 			if (DEBUGRAND) {
-				Serial.print("CV  S: "); Serial.print(seqStep);	Serial.print(" V: "); Serial.print(cv.seq[cvSeqNo].Steps[seqStep].volts); Serial.print(" Rnd: "); Serial.println(cv.seq[cvSeqNo].Steps[seqStep].rand_amt);
+				Serial.print("CV  S: "); Serial.print(cvStep);	Serial.print(" V: "); Serial.print(cv.seq[cvSeqNo].Steps[cvStep].volts); Serial.print(" Rnd: "); Serial.println(cv.seq[cvSeqNo].Steps[cvStep].rand_amt);
 				Serial.print("    Lwr: "); Serial.print(randLower); Serial.print(" Upr: "); Serial.print(randUpper); Serial.print(" Result: "); Serial.println(cvRandVal);
 			}
 		}
@@ -196,23 +209,23 @@ void loop() {
 		// Gate sequence: calculate probability of gate being high or low. Eg rand_amt = 9 means there is a 90% chance that the value will be randomised
 		if (newStep || gateStutterStep > 0) {
 
-			if (gate.seq[gateSeqNo].Steps[seqStep].stutter > 0) {
+			if (gate.seq[gateSeqNo].Steps[gateStep].stutter > 0) {
 				gateStutterStep += 1;
 				gateRandVal = (gateStutterStep % 2 > 0);
 			}
 			else {
-				if (gate.seq[gateSeqNo].Steps[seqStep].rand_amt) {
+				if (gate.seq[gateSeqNo].Steps[gateStep].rand_amt) {
 					uint8_t rndXTen = round(getRand() * 10);
 					float r = getRand();
-					gateRandVal = rndXTen < gate.seq[gateSeqNo].Steps[seqStep].rand_amt ? round(r) : gate.seq[gateSeqNo].Steps[seqStep].on;
+					gateRandVal = rndXTen < gate.seq[gateSeqNo].Steps[gateStep].rand_amt ? round(r) : gate.seq[gateSeqNo].Steps[gateStep].on;
 
 					if (DEBUGRAND) {
-						Serial.print("GT  on/off: "); Serial.print(gate.seq[gateSeqNo].Steps[seqStep].on); Serial.print(" prb: "); Serial.print(gate.seq[gateSeqNo].Steps[seqStep].rand_amt); Serial.print(" > rand: "); Serial.print(rndXTen);
-						Serial.print(" Gate: "); Serial.print(r); Serial.print(" changed: "); Serial.println(gate.seq[gateSeqNo].Steps[seqStep].on != gateRandVal);
+						Serial.print("GT  on/off: "); Serial.print(gate.seq[gateSeqNo].Steps[gateStep].on); Serial.print(" prb: "); Serial.print(gate.seq[gateSeqNo].Steps[gateStep].rand_amt); Serial.print(" > rand: "); Serial.print(rndXTen);
+						Serial.print(" Gate: "); Serial.print(r); Serial.print(" changed: "); Serial.println(gate.seq[gateSeqNo].Steps[gateStep].on != gateRandVal);
 					}
 				}
 				else {
-					gateRandVal = gate.seq[gateSeqNo].Steps[seqStep].on;
+					gateRandVal = gate.seq[gateSeqNo].Steps[gateStep].on;
 				}
 
 			}
@@ -221,7 +234,7 @@ void loop() {
 
 		// flash LED and reset step info
 		if (newStep) {
-			digitalWrite(LED, seqStep % 2 == 0 ? HIGH : LOW);
+			digitalWrite(LED, cvStep % 2 == 0 ? HIGH : LOW);
 			timeCounter = 0;
 			newStep = 0;
 		}
@@ -233,6 +246,7 @@ void loop() {
 
 		// check editing mode is valid for selected step type
 		checkEditState();
+		Serial.print("edit state: ");  Serial.println(editMode);
 		if (round(newEncPos / 4) != round(oldEncPos / 4)) {
 			boolean upOrDown = newEncPos > oldEncPos;
 			Serial.print("new enc: ");  Serial.println(newEncPos);
@@ -240,8 +254,6 @@ void loop() {
 
 			if (editMode == SETUP) {
 				setupMenu(upOrDown ? ENCUP : ENCDN);
-
-
 			}
 			else {
 
@@ -260,9 +272,7 @@ void loop() {
 							Serial.print("rand: "); Serial.print(s->rand_amt);
 						}
 						if (editMode == STUTTER && (upOrDown || s->stutter > 0) && (!upOrDown || s->stutter < 8)) {
-							//	As stutter amounts are a fixed list of musical divisions use an array to increase/decrease
-							int * p = std::find(stutterArray, stutterArray + sizeof(stutterArray), (int)s->stutter);
-							s->stutter = stutterArray[std::distance(stutterArray, p) + (upOrDown ? 1 : -1)];
+							s->stutter += upOrDown ? 1 : -1;
 							Serial.print("stutter: "); Serial.print(s->stutter);
 						}
 					}
@@ -277,9 +287,7 @@ void loop() {
 							Serial.print("rand: "); Serial.print(s->rand_amt);
 						}
 						if (editMode == STUTTER && (upOrDown || s->stutter > 0) && (!upOrDown || s->stutter < 8)) {
-							//	As stutter amounts are a fixed list of musical divisions use an array to increase/decrease
-							int * p = std::find(stutterArray, stutterArray + sizeof(stutterArray), (int)s->stutter);
-							s->stutter = stutterArray[std::distance(stutterArray, p) + (upOrDown ? 1 : -1)];
+							s->stutter += upOrDown ? 1 : -1;
 							Serial.print("stutter: "); Serial.print(s->stutter);
 						}
 					}
@@ -291,8 +299,7 @@ void loop() {
 						uint8_t * pSeq = activeSeq == SEQCV ? &cvSeqNo : &gateSeqNo;
 						*pSeq += upOrDown ? 1 : -1;
 						*pSeq = *pSeq == 255 ? 7 : (*pSeq > 7 ? 0 : *pSeq);		// because we are using an unsigned int -1 goes to 255
-						if (DEBUGBTNS) { Serial.print("cv no: ");  Serial.print(cvSeqNo); Serial.print(" gate: ");  Serial.print(gateSeqNo); }
-
+						if (DEBUGBTNS) { Serial.print("cv pat: ");  Serial.print(cvSeqNo); Serial.print(" gate: ");  Serial.print(gateSeqNo); }
 					}
 
 					if (editMode == LOOPFIRST) {
@@ -314,18 +321,28 @@ void loop() {
 						if (DEBUGBTNS) { Serial.print("Last loop: ");  Serial.print(*loopL); }
 					}
 
-					//	sequence select mode
+					//	Steps select mode
 					if (editMode == STEPS) {
-						uint8_t pSteps = activeSeq == SEQCV ? cv.seq[cvSeqNo].steps : gate.seq[gateSeqNo].steps;
-						pSteps += upOrDown ? 1 : -1;
-						pSteps = pSteps == 0 ? 8 : (pSteps > 8 ? 1 : pSteps);
 						if (activeSeq == SEQCV) {
-							cv.seq[cvSeqNo].steps = pSteps;
+							cv.seq[cvSeqNo].steps = constrain(cv.seq[cvSeqNo].steps + (upOrDown ? 1 : -1), 1, 8);
 						} else {
-							gate.seq[gateSeqNo].steps = pSteps;
+							gate.seq[gateSeqNo].steps = constrain(gate.seq[gateSeqNo].steps + (upOrDown ? 1 : -1), 1, 8);
 						}
-																					//if (DEBUGBTNS) { Serial.print("steps: ");  Serial.print(cvSeqNo); Serial.print(" gate: ");  Serial.print(gateSeqNo); }
+					}
 
+					//	Initialise/randomise sequence mode - simple menu system
+					if ((editMode == SEQOPT && upOrDown) || (editMode == RANDVALS && !upOrDown)) {
+						editMode = RANDALL;
+					}
+					else {
+						if ((editMode == SEQOPT && !upOrDown) || (editMode == RANDALL && upOrDown)) {
+							editMode = RANDVALS;
+						}
+						else {
+							if ((editMode == RANDVALS && upOrDown) || (editMode == RANDALL && !upOrDown)) {
+								editMode = SEQOPT;
+							}
+						}
 					}
 
 				}
@@ -369,9 +386,6 @@ void loop() {
 					setupMenu(btns[b].name);
 				}
 				else {
-					//Serial.print("lastEditing "); Serial.println(lastEditing);
-
-					//Serial.println(btns[b].name);
 					if (btns[b].name == STEPUP || btns[b].name == STEPDN) {
 						editStep = editStep + (btns[b].name == STEPUP ? 1 : -1);
 						editStep = (editStep > 7 ? -1 : (editStep < -1 ? 7 : editStep));
@@ -390,7 +404,8 @@ void loop() {
 					}
 					if (btns[b].name == ACTION) {
 						if (DEBUGBTNS) Serial.println("Btn: Action");
-						seqStep = 0;
+						cvStep = 0;
+						gateStep = 0;
 					}
 
 					if (btns[b].name == ENCODER) {
@@ -407,27 +422,40 @@ void loop() {
 								editMode = STEPV;
 								break;
 							case PATTERN:
+								editMode = STEPS;
+								break;
+							case STEPS:
 								editMode = LOOPFIRST;
 								break;
 							case LOOPFIRST:
 								editMode = LOOPLAST;
 								break;
 							case LOOPLAST:
-								editMode = SEQEDIT;
+								editMode = SEQOPT;
 								break;
-							case SEQEDIT:
+							case SEQOPT:
 								editMode = STEPS;
 								break;
-							case STEPS:
-								editMode = SEQINIT;
+							case RANDALL:
+								if (activeSeq == SEQCV) {
+									initCvSequence(cvSeqNo, INITRAND, cv.seq[cvSeqNo].steps);
+								}
+								else {
+									initGateSequence(gateSeqNo, INITRAND, gate.seq[gateSeqNo].steps);
+								}
 								break;
-							case SEQINIT:
-								editMode = PATTERN;
+							case RANDVALS:
+								if (activeSeq == SEQCV) {
+									initCvSequence(cvSeqNo, INITVALS, cv.seq[cvSeqNo].steps);
+								}
+								else {
+									initGateSequence(gateSeqNo, INITVALS, gate.seq[gateSeqNo].steps);
+								}
 								break;
-						}
+							}
 						}
 						else {
-							editMode = editStep == -1 ? PATTERN : STEPV;
+							editMode = editStep == -1 ? STEPS : STEPV;
 						}
 						if (DEBUGBTNS) Serial.println("Btn: Encoder");
 						lastEditing = millis();
@@ -463,8 +491,8 @@ void loop() {
 	//	bothButtons = 0;
 	//}
 
-	// about the longest display update time is 24 milliseconds so don't update display if less than 24 milliseconds until the next expected event (step change or clock tick)
-	if (millis() > 1000 && guessNextStep - millis() > 24 && clock.clockHighTime + clock.clockInterval - millis() > 24) {
+	// about the longest display update time is 2 milliseconds so don't update display if less than 5 milliseconds until the next expected event (step change or clock tick)
+	if (millis() > 1000 && guessNextStep - millis() > 5 && clock.clockHighTime + clock.clockInterval - millis() > 5) {
 		dispHandler.updateDisplay();
 	}
 }
@@ -475,19 +503,18 @@ void setCV(float setVolt) {
 	//  setVolt will be in range 0 - voltsMax (5 unless trying to do pitch which might need negative)
 	float dacVolt = setVolt / voltsMax * 4095;
 	analogWrite(DACPIN, (int)dacVolt);
-
 }
 
 
 boolean checkEditing() {
 	// check if recent encoder activity
-	return (lastEditing > 1 && millis() - lastEditing < 5000);
+	return (editMode != PATTERN && lastEditing > 1 && millis() - lastEditing < 5000);
 }
 
 void checkEditState() {
 	// check editing mode is valid for selected step type
 	if (editMode != SETUP) {
-		if (editStep == -1 && (editMode == STEPV || editMode == STEPR || editMode == STUTTER)) {
+		if (editStep == -1 && (editMode == STEPV || editMode == STEPR || editMode == STUTTER || !checkEditing())) {
 			editMode = PATTERN;
 		}
 		if (editStep > -1 && !(editMode == STEPV || editMode == STEPR || editMode == STUTTER)) {

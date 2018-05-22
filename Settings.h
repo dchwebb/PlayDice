@@ -21,8 +21,8 @@
 #define OLED_CS    10
 #define OLED_RESET 9
 
-enum refreshType { REFRESHOFF, REFRESHFULL, REFRESHTOP, REFRESHBOTTOM };
-enum editType { STEPV, STEPR, STUTTER, LOOPFIRST, LOOPLAST, PATTERN, SETUP, SEQEDIT, STEPS, SEQINIT };		// STEPV allows deep editing of voltage; STEPR - editing random level; STUTTER - choose stutter speed, PATTERN - choose pattern
+// edit modes: STEPV voltage; STEPR random level; STUTTER stutter count, PATTERN pattern number, STEPS in pattern, RANDALL - randomise all settings, RANDVALS - randomise just values
+enum editType { STEPV, STEPR, STUTTER, PATTERN, STEPS, LOOPFIRST, LOOPLAST, SEQOPT, RANDALL, RANDVALS, SETUP };
  
 // define structures to store sequence data
 struct CvStep {
@@ -51,7 +51,7 @@ struct GatePatterns {
 	struct GateSequence seq[8];
 };
 enum seqMode { LOOPCURRENT, LOOPALL };
-enum seqInitType { INITRAND, INITBLANK };
+enum seqInitType { INITRAND, INITVALS, INITBLANK};
 enum seqType { SEQCV, SEQGATE };
 enum rndType { UPPER, LOWER };
 
