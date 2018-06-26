@@ -40,7 +40,7 @@ int8_t cvStep = -1;				// increments each step of cv sequence
 int8_t gateStep = -1;			// increments each step of gate sequence
 int8_t editStep = 0;			// store which step is currently selected for editing (-1 = choose seq, 0-7 are the sequence steps)
 editType editMode = STEPV;		// enum editType - eg editing voltage, random amts etc
-seqType activeSeq = SEQGATE;		// whether the CV or Gate rows is active for editing
+seqType activeSeq = SEQCV;	// whether the CV or Gate rows is active for editing
 uint16_t clockBPM = 0;			// BPM read from external clock
 long oldEncPos = 0;
 boolean actionStutter;			// Stutter triggered by action button
@@ -50,7 +50,7 @@ uint8_t actionStutterNo = 8;	// Number of stutter steps when triggered by action
 //	declare variables
 struct CvPatterns cv;
 struct GatePatterns gate;
-Btn btns[] = { { STEPDN, 0 },{ STEPUP, 1 },{ ENCODER, 2 },{ CHANNEL, 3 },{ ACTION, 4 } };
+Btn btns[] = { { STEPDN, 0 },{ STEPUP, 1 },{ ENCODER, 2 },{ CHANNEL, 3 },{ ACTION, 4 } };		// numbers refer to Teensy digital pin numbers
 //MenuItem menu[] = { { 0, "Back", 1 },{ 1, "Save" } };
 std::array<MenuItem, 3> menu{ { { 0, "< Back", 1 },{ 1, "Save" },{ 2, "Stuff" } } };
 int menuSize = menu.size();
@@ -171,7 +171,7 @@ void loop() {
 			//Serial.print("tc: "); Serial.print(timeCounter);  Serial.print(" ts ");  Serial.println(timeStep);
 		}
 		if (timeCounter >= stutterStep * (timeStep / actionStutterNo) && stutterStep < actionStutterNo) {
-			if (DEBUGSTEPS) { 000Serial.print("action stutter step: "); Serial.print(stutterStep);  Serial.print(" ms ");  Serial.println(millis()); }
+			if (DEBUGSTEPS) { Serial.print("action stutter step: "); Serial.print(stutterStep);  Serial.print(" ms ");  Serial.println(millis()); }
 			newStutter = 1;
 		}
 	}
@@ -217,7 +217,11 @@ void loop() {
 
 		// CV sequence: calculate possible ranges of randomness to ensure we don't try and set a random value out of permitted range
 		if (newStep || cvStutterStep > 0) {
-			if (cv.seq[cvSeqNo].Steps[cvStep].stutter > 0) {
+			if (cv.seq[cvSeqNo].Steps[cvStep].stutter > 0 || actionStutter) {
+				if (actionStutter) {
+					cvStutterStep = stutterStep;
+					stutterStep += 1;
+				}
 				cvStutterStep += 1;
 			}
 			float randLower = getRandLimit(cv.seq[cvSeqNo].Steps[cvStep], LOWER);
