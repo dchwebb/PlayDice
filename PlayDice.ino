@@ -10,7 +10,7 @@
 
 
 const boolean DEBUGCLOCK = 0;
-const boolean DEBUGSTEPS = 1;
+const boolean DEBUGSTEPS = 0;
 const boolean DEBUGRAND = 0;
 const boolean DEBUGFRAME = 0;
 const boolean DEBUGBTNS = 1;
@@ -139,6 +139,13 @@ void loop() {
 	// work out whether to get bpm from tempo potentiometer or clock signal (checking that we have recieved a recent clock signal)
 	if (clockBPM >= minBPM && clockBPM < maxBPM && clock.hasSignal()) {
 		bpm = clockBPM;
+		// basic clock divider allowing tempo to be halved or doubled depending on position of tempo pot
+		if (tempoPot < 341) {
+			bpm = clockBPM / 2;
+		} else if (tempoPot > 683) {
+			bpm = clockBPM * 2;
+		}
+		//Serial.print("cl bpm: ");  Serial.print(clockBPM); Serial.print(" tp: ");  Serial.print(tempoPot); Serial.print(" bpm: ");  Serial.println(bpm);
 	}
 	else {
 		bpm = map(tempoPot, 0, 1023, minBPM, maxBPM);        // map(value, fromLow, fromHigh, toLow, toHigh)
