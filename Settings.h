@@ -23,7 +23,10 @@
 
 // edit modes: STEPV voltage; STEPR random level; STUTTER stutter count, PATTERN pattern number, STEPS in pattern, RANDALL - randomise all settings, RANDVALS - randomise just values
 enum editType { STEPV, STEPR, STUTTER, PATTERN, STEPS, LOOPFIRST, LOOPLAST, SEQOPT, RANDALL, RANDVALS, SETUP };
- 
+
+// action mode - what happens when the action button is pressed
+enum actionOpts { ACTRESTART, ACTSTUTTER };
+
 // define structures to store sequence data
 struct CvStep {
 	float volts;

@@ -1,5 +1,5 @@
 /* 
-	Editor: http://www.visualmicro.com
+	Editor: https://www.visualmicro.com/
 			visual micro and the arduino ide ignore this code during compilation. this code is automatically maintained by visualmicro, manual changes to this file will be overwritten
 			the contents of the Visual Micro sketch sub folder can be deleted prior to publishing a project
 			all non-arduino files created by visual micro and all visual studio project or solution files can be freely deleted and are not required to compile a sketch (do not delete your own code!).
@@ -15,7 +15,7 @@
 #define __HARDWARE_MK20dx256__
 #define __HARDWARE_MK20DX256__
 #define __MK20DX256__
-#define TEENSYDUINO 141
+#define TEENSYDUINO 142
 #define ARDUINO 10805
 #define F_CPU 96000000
 #define USB_SERIAL
@@ -33,6 +33,7 @@ typedef void *__builtin_va_list;
 #define __volatile__
 #define NEW_H
 
+#define __STDC__ 
 
 #include <arduino.h>
 #define abs(x) ((x)>0?(x):-(x))
@@ -41,6 +42,8 @@ typedef void *__builtin_va_list;
 #define radians(deg) ((deg)*DEG_TO_RAD)
 #define degrees(rad) ((rad)*RAD_TO_DEG)
 #define sq(x) ((x)*(x))
+
+
 
 #define __disable_irq() __asm__ volatile("");
 #define __enable_irq()	__asm__ volatile("");

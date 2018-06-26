@@ -10,10 +10,10 @@
 
 
 const boolean DEBUGCLOCK = 0;
-const boolean DEBUGSTEPS = 0;
+const boolean DEBUGSTEPS = 1;
 const boolean DEBUGRAND = 0;
-const boolean DEBUGFRAME = 1;
-const boolean DEBUGBTNS = 0;
+const boolean DEBUGFRAME = 0;
+const boolean DEBUGBTNS = 1;
 
 uint16_t tempoPot = 512;		// Reading from tempo potentiometer for setting bpm
 uint16_t bpm = 120;				// beats per minute of sequence (assume sequence runs in eighth notes for now)
@@ -40,10 +40,12 @@ int8_t cvStep = -1;				// increments each step of cv sequence
 int8_t gateStep = -1;			// increments each step of gate sequence
 int8_t editStep = 0;			// store which step is currently selected for editing (-1 = choose seq, 0-7 are the sequence steps)
 editType editMode = STEPV;		// enum editType - eg editing voltage, random amts etc
-seqType activeSeq = SEQCV;		// whether the CV or Gate rows is active for editing
+seqType activeSeq = SEQGATE;		// whether the CV or Gate rows is active for editing
 uint16_t clockBPM = 0;			// BPM read from external clock
 long oldEncPos = 0;
-boolean bothButtons;
+boolean actionStutter;			// Stutter triggered by action button
+uint8_t stutterStep;			// When stutter is triggered by action button store stutter step number based on current clock speed 
+uint8_t actionStutterNo = 8;	// Number of stutter steps when triggered by action button
 
 //	declare variables
 struct CvPatterns cv;
@@ -56,6 +58,7 @@ int menuSize = menu.size();
 Encoder myEnc(ENCCLKPIN, ENCDATAPIN);
 ClockHandler clock(minBPM, maxBPM);
 DisplayHandler dispHandler;
+actionOpts actionType = ACTSTUTTER;
 
 void initCvSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
 	numSteps = (numSteps == 0 || numSteps > 8 ? 8 : numSteps);
@@ -72,7 +75,7 @@ void initCvSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
 		}
 	}
 }
-void initGateSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
+void initGateSequence(int seqNum, seqInitType initType, uint16_t numSteps = 2) {
 	numSteps = (numSteps == 0 || numSteps > 8 ? 8 : numSteps);
 	gate.seq[seqNum].steps = numSteps;
 	for (int s = 0; s < 8; s++) {
@@ -112,9 +115,9 @@ void setup() {
 	//  Set up CV and Gate patterns
 	srand(micros());
 	for (int p = 0; p < 8; p++) {
-		initCvSequence(p, INITRAND);
+		initCvSequence(p, INITVALS);
 		srand(micros());
-		initGateSequence(p, INITRAND);
+		initGateSequence(p, INITVALS);
 	}
 
 	// initialiase encoder
@@ -148,15 +151,32 @@ void loop() {
 	boolean newStutter = 0;
 	if (gateStutterStep > 0 && gateStutterStep < gate.seq[gateSeqNo].Steps[gateStep].stutter) {
 		if (timeCounter >= gateStutterStep * (timeStep / gate.seq[gateSeqNo].Steps[gateStep].stutter)) {
-			if (DEBUGSTEPS) { Serial.print("new stutter step: "); Serial.println(millis()); }
+			if (DEBUGSTEPS) { Serial.print("new stutter step: ");  Serial.print(gateStutterStep);  Serial.print(" ms "); Serial.println(millis()); }
 			newStutter = 1;
 		}
 	}
 	if (cvStutterStep > 0 && cvStutterStep < cv.seq[cvSeqNo].Steps[cvStep].stutter) {
 		if (timeCounter >= cvStutterStep * (timeStep / cv.seq[cvSeqNo].Steps[cvStep].stutter)) {
-			if (DEBUGSTEPS) { Serial.print("new stutter step: "); Serial.println(millis()); }
+			//if (DEBUGSTEPS) { Serial.print("new stutter step: "); Serial.println(millis()); }
 			newStutter = 1;
 		}
+	}
+
+	//	if action button triggers a stutter check which step to activate
+	if (actionStutter) {
+		//if (DEBUGBTNS) { Serial.print("actionStutter: "); Serial.println(actionStutter); }
+		//	divide current step length by stutter count - for now actionStutterNo
+		if (stutterStep == 0) {
+			stutterStep = (timeCounter / (timeStep / actionStutterNo)) + 1;
+			//Serial.print("tc: "); Serial.print(timeCounter);  Serial.print(" ts ");  Serial.println(timeStep);
+		}
+		if (timeCounter >= stutterStep * (timeStep / actionStutterNo) && stutterStep < actionStutterNo) {
+			if (DEBUGSTEPS) { 000Serial.print("action stutter step: "); Serial.print(stutterStep);  Serial.print(" ms ");  Serial.println(millis()); }
+			newStutter = 1;
+		}
+	}
+	else {
+		stutterStep = 0;
 	}
 
 
@@ -181,11 +201,15 @@ void loop() {
 			}
 			cvStutterStep = 0;
 			gateStutterStep = 0;
+			stutterStep = 0;
 			if (DEBUGSTEPS) { Serial.print("new step: "); Serial.print(cvStep); Serial.print(" millis: "); Serial.println(millis()); }
 		}
 
 		//	guess the next step or stutter time to estimate if we have time to do a refresh
-		guessNextStep = millis() + min((gate.seq[gateSeqNo].Steps[gateStep].stutter ? (timeStep / gate.seq[gateSeqNo].Steps[gateStep].stutter) : timeStep), (cv.seq[cvSeqNo].Steps[cvStep].stutter ? (timeStep / cv.seq[cvSeqNo].Steps[cvStep].stutter) : timeStep));
+		guessNextStep = millis() + min(min((gate.seq[gateSeqNo].Steps[gateStep].stutter ? (timeStep / gate.seq[gateSeqNo].Steps[gateStep].stutter) : timeStep),
+			(cv.seq[cvSeqNo].Steps[cvStep].stutter ? (timeStep / cv.seq[cvSeqNo].Steps[cvStep].stutter) : timeStep)),
+			(actionStutter ? (timeStep / actionStutterNo) : timeStep)
+		);
 
 		if (DEBUGSTEPS) {
 			Serial.print("guess next step: "); Serial.println(guessNextStep);
@@ -207,9 +231,13 @@ void loop() {
 		}
 
 		// Gate sequence: calculate probability of gate being high or low. Eg rand_amt = 9 means there is a 90% chance that the value will be randomised
-		if (newStep || gateStutterStep > 0) {
+		if (newStep || gateStutterStep > 0 || actionStutter) {
 
-			if (gate.seq[gateSeqNo].Steps[gateStep].stutter > 0) {
+			if (gate.seq[gateSeqNo].Steps[gateStep].stutter > 0 || actionStutter) {
+				if (actionStutter) {
+					gateStutterStep = stutterStep;
+					stutterStep += 1;
+				}
 				gateStutterStep += 1;
 				gateRandVal = (gateStutterStep % 2 > 0);
 			}
@@ -355,6 +383,7 @@ void loop() {
 	}
 
 	// handle momentary button presses - step up/down or encoder button to switch editing mode
+
 	for (int b = 0; b < 5; b++) {
 		//  Parameter button handler - digitalRead returns 0 when button down
 		if (digitalRead(btns[b].pin)) {
@@ -367,7 +396,7 @@ void loop() {
 			if (btns[b].released && btns[b].name == CHANNEL) {
 				btns[b].released = 0;
 				if (millis() - btns[b].lastPressed < 500) {
-					Serial.println("Channel");
+					if (DEBUGBTNS) Serial.println("Btn: Channel");
 					if (editMode == SETUP) {
 						editMode = STEPV;
 					}
@@ -376,6 +405,12 @@ void loop() {
 						lastEditing = 0;
 					}
 				}
+			}
+
+			if (btns[b].released && btns[b].name == ACTION) {
+				btns[b].released = 0;
+				actionStutter = 0;
+				if (DEBUGBTNS) Serial.println("Stutter off");
 			}
 		}
 		else {
@@ -402,11 +437,20 @@ void loop() {
 							if (btns[STEPDN].pressed) Serial.println("Btn: Step dn");
 						}
 					}
+
 					if (btns[b].name == ACTION) {
-						if (DEBUGBTNS) Serial.println("Btn: Action");
-						cvStep = 0;
-						gateStep = 0;
+						if (DEBUGBTNS) { Serial.print("Btn: Action; type: "); Serial.println(actionType); }
+						switch (actionType) {
+						case ACTSTUTTER:
+							actionStutter = 1;
+							break;
+						case ACTRESTART:
+							cvStep = 0;
+							gateStep = 0;
+							break;
+						}
 					}
+
 
 					if (btns[b].name == ENCODER) {
 
