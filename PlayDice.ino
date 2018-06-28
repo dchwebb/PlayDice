@@ -40,19 +40,23 @@ int8_t cvStep = -1;				// increments each step of cv sequence
 int8_t gateStep = -1;			// increments each step of gate sequence
 int8_t editStep = 0;			// store which step is currently selected for editing (-1 = choose seq, 0-7 are the sequence steps)
 editType editMode = STEPV;		// enum editType - eg editing voltage, random amts etc
-seqType activeSeq = SEQCV;	// whether the CV or Gate rows is active for editing
+seqType activeSeq = SEQCV;		// whether the CV or Gate rows is active for editing
 uint16_t clockBPM = 0;			// BPM read from external clock
 long oldEncPos = 0;
 boolean actionStutter;			// Stutter triggered by action button
 uint8_t stutterStep;			// When stutter is triggered by action button store stutter step number based on current clock speed 
 uint8_t actionStutterNo = 8;	// Number of stutter steps when triggered by action button
+boolean lfoMode = true;				// True if outputing LFO rather than CV/Gate
+float lfoX = 1, lfoY = 0;		// LFO parameters for quick Minsky approximation
+uint16_t lfoNextSample;			// For a smoother sine wave the next sample is calculated after sending the previous sample to the DAC
+elapsedMillis lfoCounter = 0;	// millisecond counter to check if next lfo calculation is due
 
 //	declare variables
 struct CvPatterns cv;
 struct GatePatterns gate;
 Btn btns[] = { { STEPDN, 0 },{ STEPUP, 1 },{ ENCODER, 2 },{ CHANNEL, 3 },{ ACTION, 4 } };		// numbers refer to Teensy digital pin numbers
 //MenuItem menu[] = { { 0, "Back", 1 },{ 1, "Save" } };
-std::array<MenuItem, 3> menu{ { { 0, "< Back", 1 },{ 1, "Save" },{ 2, "Stuff" } } };
+std::array<MenuItem, 3> menu{ { { 0, "< Back", 1 },{ 1, "Save" },{ 2, "LFO Mode" } } };
 int menuSize = menu.size();
 
 Encoder myEnc(ENCCLKPIN, ENCDATAPIN);
@@ -127,6 +131,28 @@ void setup() {
 }
 
 void loop() {
+
+	if (lfoMode) {
+
+		const float e = .32;
+
+		tempoPot = analogRead(TEMPOPIN);
+
+		lfoX -= e * lfoY;
+		lfoY += e * lfoX;
+		if (lfoY < -1) {
+			lfoY = -1;
+		} else if (lfoY > 1) {
+			lfoY = 1;
+		}
+
+		//  DAC buffer takes values of 0 to 4095 relating to 0v to 3.3v
+		analogWrite(DACPIN, round(2047 * (lfoY + 1)));
+		//Serial.println(lfoY);
+		
+		return;
+	}
+
 	//	read value of clock signal if present and set bmp accordingly
 	clockBPM = clock.readClock();
 
@@ -613,6 +639,9 @@ void setupMenu(int action) {
 				Serial.println(menu[m].name);
 				if (menu[m].name == "< Back") {
 					editMode = STEPV;
+				}
+				else if (menu[m].name == "LFO Mode") {
+					lfoMode = 1;
 				}
 			}
 		}
