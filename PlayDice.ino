@@ -15,7 +15,7 @@ const boolean DEBUGRAND = 0;
 const boolean DEBUGFRAME = 0;
 const boolean DEBUGBTNS = 1;
 
-uint16_t tempoPot = 512;		// Reading from tempo potentiometer for setting bpm
+uint16_t tempoPot = 512, oldTempoPot = 0;		// Reading from tempo potentiometer for setting bpm
 uint16_t bpm = 120;				// beats per minute of sequence (assume sequence runs in eighth notes for now)
 uint16_t minBPM = 35;			// minimum BPM allowed for internal/external clock
 uint16_t maxBPM = 300;			// maximum BPM allowed for internal/external clock
@@ -39,16 +39,19 @@ uint8_t gateLoopLast = 0;		// last sequence in loop
 int8_t cvStep = -1;				// increments each step of cv sequence
 int8_t gateStep = -1;			// increments each step of gate sequence
 int8_t editStep = 0;			// store which step is currently selected for editing (-1 = choose seq, 0-7 are the sequence steps)
-editType editMode = STEPV;		// enum editType - eg editing voltage, random amts etc
+editType editMode = LFO;		// enum editType - eg editing voltage, random amts etc
 seqType activeSeq = SEQCV;		// whether the CV or Gate rows is active for editing
 uint16_t clockBPM = 0;			// BPM read from external clock
 long oldEncPos = 0;
 boolean actionStutter;			// Stutter triggered by action button
 uint8_t stutterStep;			// When stutter is triggered by action button store stutter step number based on current clock speed 
 uint8_t actionStutterNo = 8;	// Number of stutter steps when triggered by action button
-boolean lfoMode = true;				// True if outputing LFO rather than CV/Gate
+//boolean lfoMode = 0;				// True if outputing LFO rather than CV/Gate
 float lfoX = 1, lfoY = 0;		// LFO parameters for quick Minsky approximation
-uint16_t lfoNextSample;			// For a smoother sine wave the next sample is calculated after sending the previous sample to the DAC
+float lfoSpeed;					// lfoSpeed calculated from tempo pot
+float oldLfoSpeed;				// lfoSpeed calculated from tempo pot
+uint8_t lfoJitter;				// because the analog pot is more sensitive at the bottom of its range adjust the threshold before detecting a pot turn
+
 elapsedMillis lfoCounter = 0;	// millisecond counter to check if next lfo calculation is due
 
 //	declare variables
@@ -127,19 +130,47 @@ void setup() {
 	// initialiase encoder
 	oldEncPos = round(myEnc.read() / 4);
 	lastEditing = 0;		// this somehow gets set to '7' on startup - not sure how at this stage
-	editMode = STEPV;		// this somehow gets set to '1' on startup
+//	editMode = STEPV;		// this somehow gets set to '1' on startup
+
+	if (editMode == LFO) {
+		dispHandler.updateDisplay();
+	}
 }
 
 void loop() {
 
-	if (lfoMode) {
+	if (editMode == LFO) {
 
-		const float e = .32;
+		if (digitalRead(btns[3].pin) == 0 || digitalRead(btns[4].pin) == 0) {
+			editMode = STEPV;
+			//lfoMode = 0;
+			return;
+		}
 
 		tempoPot = analogRead(TEMPOPIN);
+		if (oldTempoPot - tempoPot > lfoJitter || tempoPot - oldTempoPot > lfoJitter || lfoSpeed < 0.0001) {
+			//lfoSpeed = (float)cbrt(pow((float)tempoPot, 2)) / 50000;
+			lfoSpeed = (float)(pow((float)tempoPot, (float)0.72)) / 50000;
+			if (lfoSpeed < 0.0001) {
+				lfoSpeed = 0.0001;
+			}
+			Serial.println(lfoSpeed * 1000);//lfoSpeed * 1000
+			oldTempoPot = tempoPot;
+			if (tempoPot < 6) {
+				lfoJitter = 1;
+			} else if (tempoPot < 20) {
+				lfoJitter = 6;
+			} else if (tempoPot < 300) {
+				lfoJitter = 10;
+			} else if (tempoPot < 700) {
+				lfoJitter = 15;
+			} else {
+				lfoJitter = 30;
+			}
+		}
 
-		lfoX -= e * lfoY;
-		lfoY += e * lfoX;
+		lfoX -= lfoSpeed * lfoY;
+		lfoY += lfoSpeed * lfoX;
 		if (lfoY < -1) {
 			lfoY = -1;
 		} else if (lfoY > 1) {
@@ -148,7 +179,7 @@ void loop() {
 
 		//  DAC buffer takes values of 0 to 4095 relating to 0v to 3.3v
 		analogWrite(DACPIN, round(2047 * (lfoY + 1)));
-		//Serial.println(lfoY);
+		digitalWrite(GATEOUT, lfoY > 0);
 		
 		return;
 	}
@@ -641,7 +672,9 @@ void setupMenu(int action) {
 					editMode = STEPV;
 				}
 				else if (menu[m].name == "LFO Mode") {
-					lfoMode = 1;
+					//lfoMode = 1;
+					editMode = LFO;
+					//dispHandler.updateDisplay();
 				}
 			}
 		}

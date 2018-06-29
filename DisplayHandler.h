@@ -20,12 +20,11 @@ extern seqType activeSeq;
 extern CvPatterns cv;
 extern GatePatterns gate;
 extern uint8_t cvLoopFirst;		// first sequence in loop
-extern uint8_t cvLoopLast;			// last sequence in loop
-extern uint8_t gateLoopFirst;		// first sequence in loop
-extern uint8_t gateLoopLast;			// last sequence in loop
-//extern MenuItem menu[];
-extern std::array<MenuItem, 3> menu;
+extern uint8_t cvLoopLast;		// last sequence in loop
+extern uint8_t gateLoopFirst;	// first sequence in loop
+extern uint8_t gateLoopLast;	// last sequence in loop
 
+extern std::array<MenuItem, 3> menu;
 extern int menuSize;
 
 extern float getRandLimit(CvStep s, rndType getUpper);
@@ -42,11 +41,12 @@ public:
 	void drawParam(String s, String v, uint8_t x, uint8_t y, uint8_t w, boolean selected, uint8_t highlightX, uint8_t highlightW);
 	void drawParam(String s, String v, uint8_t x, uint8_t y, uint8_t w, boolean selected);
 	void displayLanes();
+	void displayLFO();
 	void setupMenu();
 	Adafruit_SSD1306 display;
 private:
 	long clockSignal;
-	uint32_t frameStart;
+	int32_t frameStart;
 };
 
 //	Putting the constructor here with display class initialised after colon ensures that correct constructor gets called and does not blank settings
@@ -63,16 +63,42 @@ void DisplayHandler::updateDisplay() {
 	display.clearDisplay();
 	display.setTextSize(1);
 
-	if (editMode == SETUP) {
-		setupMenu();
+	if (editMode == LFO) {
+		displayLFO();
 	}
+	else if (editMode == SETUP) {
+		setupMenu();
+	} 
 	else {
 		displayLanes();
 	}
 
-	if (display.display() && DEBUGFRAME) {
-		Serial.print("Frame start: "); Serial.print(frameStart); Serial.print(" end: "); Serial.print(micros()); Serial.print(" time: "); Serial.println(micros() - frameStart);
+	if (display.display(editMode == LFO) && DEBUGFRAME) {
+		int32_t m = micros();
+		Serial.print("Frame start: "); Serial.print(frameStart); Serial.print(" end: "); Serial.print(m); Serial.print(" time: "); Serial.println(m - frameStart);
 	}
+}
+
+//	Display static lfo screen
+void DisplayHandler::displayLFO() {
+	//display.drawRect(0, 0, 128, 64, WHITE);
+	float e = 0.3;
+	float x = 1, y = 0, oldY = 0;
+	for (int i = 0; i < 110; ++i)
+	{
+		x -= e * y;
+		y += e * x;
+		display.drawPixel(i + 10, 7 + round(8 * (y + 1)), WHITE);	// draw sine wave
+		display.drawPixel(i + 10, y > 0 ? 55 : 40, WHITE);	// draw square wave
+
+		// draw vertical lines on square wave if changing from high to low
+		if (oldY > 0 != y > 0) {
+			display.drawFastVLine(i + 10, 40, 15, WHITE);
+		}
+		oldY = y;
+	}
+	display.drawRect(0, 0, 128, 64, WHITE);
+	display.drawFastHLine(0, 31, 128, WHITE);
 }
 
 //	Display setup menu

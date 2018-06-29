@@ -380,6 +380,14 @@ void Adafruit_SSD1306::dim(boolean dim) {
 	ssd1306_command(contrast);
 }
 
+// DW added overload to force a full screen update
+boolean Adafruit_SSD1306::display(boolean fullUpdate) {
+	if (fullUpdate) {
+		forceUpdate = 1;
+	}
+	display();
+}
+
 boolean Adafruit_SSD1306::display(void) {
 	// DW if no changes required do not update display
 	if (forceUpdate == 0 && std::equal(std::begin(buffer), std::end(buffer), std::begin(bufferprev))) {
@@ -444,6 +452,11 @@ boolean Adafruit_SSD1306::display(void) {
 		}
 		else {
 			Serial.println("full update");
+			if (screenMode != 0x00) {
+				ssd1306_command(0x20);		// OLED_CMD_SET_MEMORY_ADDR_MODE
+				ssd1306_command(0x00);		// 0x00 = HORZ mode ; 0x01 = VERT ; 0x02 = PAGE
+				screenMode = 0x00;
+			}
 			ssd1306_command(SSD1306_COLUMNADDR);
 			ssd1306_command(0);   // Column start address (0 = reset)
 			ssd1306_command(SSD1306_LCDWIDTH - 1); // Column end address (127 = reset)

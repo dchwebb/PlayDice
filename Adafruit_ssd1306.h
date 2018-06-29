@@ -116,6 +116,7 @@ class Adafruit_SSD1306 : public Adafruit_GFX {
   void clearDisplay(void);
   void invertDisplay(uint8_t i);
   boolean display();
+  boolean display(boolean fullUpdate);		// DW added overload to force a full screen update
 
   void startscrollright(uint8_t start, uint8_t stop);
   void startscrollleft(uint8_t start, uint8_t stop);
