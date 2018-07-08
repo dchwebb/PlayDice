@@ -39,7 +39,7 @@ uint8_t gateLoopLast = 0;		// last sequence in loop
 int8_t cvStep = -1;				// increments each step of cv sequence
 int8_t gateStep = -1;			// increments each step of gate sequence
 int8_t editStep = 0;			// store which step is currently selected for editing (-1 = choose seq, 0-7 are the sequence steps)
-editType editMode = LFO;		// enum editType - eg editing voltage, random amts etc
+editType editMode = STEPV;		// enum editType - eg editing voltage, random amts etc
 seqType activeSeq = SEQCV;		// whether the CV or Gate rows is active for editing
 uint16_t clockBPM = 0;			// BPM read from external clock
 long oldEncPos = 0;
@@ -57,7 +57,7 @@ elapsedMillis lfoCounter = 0;	// millisecond counter to check if next lfo calcul
 //	declare variables
 struct CvPatterns cv;
 struct GatePatterns gate;
-Btn btns[] = { { STEPDN, 0 },{ STEPUP, 1 },{ ENCODER, 2 },{ CHANNEL, 3 },{ ACTION, 4 } };		// numbers refer to Teensy digital pin numbers
+Btn btns[] = { { STEPDN, 0 },{ STEPUP, 1 },{ ENCODER, 2 },{ CHANNEL, 3 },{ ACTION, 4 },{ ACTIONPIN, 22 } };		// numbers refer to Teensy digital pin numbers
 //MenuItem menu[] = { { 0, "Back", 1 },{ 1, "Save" } };
 std::array<MenuItem, 3> menu{ { { 0, "< Back", 1 },{ 1, "Save" },{ 2, "LFO Mode" } } };
 int menuSize = menu.size();
@@ -115,9 +115,11 @@ void setup() {
 	dispHandler.init();
 
 	//	initialise all momentary buttons as Input pullup
-	for (int b = 0; b < 5; b++) {
+	for (int b = 0; b < 6; b++) {
 		pinMode(btns[b].pin, INPUT_PULLUP);
 	}
+	//pinMode(ACTIONPIN, INPUT_PULLUP);
+
 
 	//  Set up CV and Gate patterns
 	srand(micros());
@@ -451,8 +453,14 @@ void loop() {
 	}
 
 	// handle momentary button presses - step up/down or encoder button to switch editing mode
+	//if (digitalRead(ACTIONPIN)) {
+	//	Serial.println("Action Pin: off");
+	//}
+	//else {
+	//	Serial.println("Action Pin: on");
+	//}
 
-	for (int b = 0; b < 5; b++) {
+	for (int b = 0; b < 6; b++) {
 		//  Parameter button handler - digitalRead returns 0 when button down
 		if (digitalRead(btns[b].pin)) {
 			if (btns[b].pressed == 1) {
@@ -475,7 +483,7 @@ void loop() {
 				}
 			}
 
-			if (btns[b].released && btns[b].name == ACTION) {
+			if (btns[b].released && (btns[b].name == ACTION || btns[b].name == ACTIONPIN)) {
 				btns[b].released = 0;
 				actionStutter = 0;
 				if (DEBUGBTNS) Serial.println("Stutter off");
@@ -506,7 +514,7 @@ void loop() {
 						}
 					}
 
-					if (btns[b].name == ACTION) {
+					if (btns[b].name == ACTION || btns[b].name == ACTIONPIN) {
 						if (DEBUGBTNS) { Serial.print("Btn: Action; type: "); Serial.println(actionType); }
 						switch (actionType) {
 						case ACTSTUTTER:

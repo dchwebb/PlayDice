@@ -14,6 +14,7 @@
 #define ENCDATAPIN 6
 #define GATEOUT 16		// Gate sequence out
 #define DACPIN 40		// CV sequence out
+//#define ACTIONPIN 22	// Pin for external voltage to trigger action
 
 #define OLED_MOSI  11
 #define OLED_CLK   20
@@ -67,7 +68,7 @@ struct Btn {
 	boolean longClick;
 	uint32_t lastPressed;
 };
-enum btnName { STEPUP, STEPDN, ENCODER, CHANNEL, ACTION, ENCUP, ENCDN };
+enum btnName { STEPUP, STEPDN, ENCODER, CHANNEL, ACTION, ENCUP, ENCDN, ACTIONPIN };
 
 struct MenuItem {
 	int val;
