@@ -57,7 +57,7 @@ elapsedMillis lfoCounter = 0;	// millisecond counter to check if next lfo calcul
 //	declare variables
 struct CvPatterns cv;
 struct GatePatterns gate;
-Btn btns[] = { { STEPDN, 0 },{ STEPUP, 1 },{ ENCODER, 2 },{ CHANNEL, 3 },{ ACTION, 4 },{ ACTIONPIN, 22 } };		// numbers refer to Teensy digital pin numbers
+Btn btns[] = { { STEPDN, 12 },{ STEPUP, 20 },{ ENCODER, 23 },{ CHANNEL, 19 },{ ACTION, 21 },{ ACTIONCV, 22 } };		// numbers refer to Teensy digital pin numbers
 //MenuItem menu[] = { { 0, "Back", 1 },{ 1, "Save" } };
 std::array<MenuItem, 3> menu{ { { 0, "< Back", 1 },{ 1, "Save" },{ 2, "LFO Mode" } } };
 int menuSize = menu.size();
@@ -65,7 +65,7 @@ int menuSize = menu.size();
 Encoder myEnc(ENCCLKPIN, ENCDATAPIN);
 ClockHandler clock(minBPM, maxBPM);
 DisplayHandler dispHandler;
-actionOpts actionType = ACTSTUTTER;
+actionOpts actionType = ACTSTUTTER;w
 
 void initCvSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
 	numSteps = (numSteps == 0 || numSteps > 8 ? 8 : numSteps);
@@ -118,8 +118,6 @@ void setup() {
 	for (int b = 0; b < 6; b++) {
 		pinMode(btns[b].pin, INPUT_PULLUP);
 	}
-	//pinMode(ACTIONPIN, INPUT_PULLUP);
-
 
 	//  Set up CV and Gate patterns
 	srand(micros());
@@ -452,13 +450,6 @@ void loop() {
 		lastEditing = millis();
 	}
 
-	// handle momentary button presses - step up/down or encoder button to switch editing mode
-	//if (digitalRead(ACTIONPIN)) {
-	//	Serial.println("Action Pin: off");
-	//}
-	//else {
-	//	Serial.println("Action Pin: on");
-	//}
 
 	for (int b = 0; b < 6; b++) {
 		//  Parameter button handler - digitalRead returns 0 when button down
@@ -483,7 +474,7 @@ void loop() {
 				}
 			}
 
-			if (btns[b].released && (btns[b].name == ACTION || btns[b].name == ACTIONPIN)) {
+			if (btns[b].released && (btns[b].name == ACTION || btns[b].name == ACTIONCV)) {
 				btns[b].released = 0;
 				actionStutter = 0;
 				if (DEBUGBTNS) Serial.println("Stutter off");
@@ -514,7 +505,7 @@ void loop() {
 						}
 					}
 
-					if (btns[b].name == ACTION || btns[b].name == ACTIONPIN) {
+					if (btns[b].name == ACTION || btns[b].name == ACTIONCV) {
 						if (DEBUGBTNS) { Serial.print("Btn: Action; type: "); Serial.println(actionType); }
 						switch (actionType) {
 						case ACTSTUTTER:
