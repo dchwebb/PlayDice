@@ -80,6 +80,10 @@
     <ProjectCapability Include="VisualMicro" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="KiCad\PlayDice.kicad_pcb" />
+    <None Include="KiCad\PlayDice.net" />
+    <None Include="KiCad\PlayDice.pro" />
+    <None Include="KiCad\PlayDice.sch" />
     <None Include="PlayDice.ino">
       <FileType>CppCode</FileType>
     </None>
@@ -95,6 +99,9 @@
     <ClCompile Include="Adafruit_ssd1306.cpp" />
     <ClCompile Include="DisplayHandler.cpp" />
     <ClCompile Include="Settings.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="KiCad\PlayDice-cache.lib" />
   </ItemGroup>
   <PropertyGroup>
     <DebuggerFlavor>VisualMicroDebugger</DebuggerFlavor>

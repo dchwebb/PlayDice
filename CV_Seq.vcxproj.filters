@@ -33,6 +33,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="PlayDice.ino" />
+    <None Include="KiCad\PlayDice.kicad_pcb" />
+    <None Include="KiCad\PlayDice.net" />
+    <None Include="KiCad\PlayDice.pro" />
+    <None Include="KiCad\PlayDice.sch" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Adafruit_ssd1306.cpp">
@@ -44,5 +48,8 @@
     <ClCompile Include="Settings.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="KiCad\PlayDice-cache.lib" />
   </ItemGroup>
 </Project>
