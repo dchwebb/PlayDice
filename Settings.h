@@ -9,10 +9,10 @@
 
 #define LED 13
 #define CLOCKPIN 14		// incoming voltage clock
-#define TEMPOPIN 1		// analog pin 1 A1 - pot for controlling clock manually
-#define ENCCLKPIN 18
-#define ENCDATAPIN 17
-#define GATEOUT 16		// Gate sequence out
+#define TEMPOPIN 9		// analog pin 9 - pot for controlling clock manually
+#define ENCCLKPIN 16	// encoder pin 1
+#define ENCDATAPIN 17	// encoder pin 3
+#define GATEOUT 18		// Gate sequence out
 #define DACPIN 40		// CV sequence out
 
 

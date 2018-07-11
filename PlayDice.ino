@@ -8,7 +8,6 @@
 #include <array>
 #include <algorithm>
 
-
 const boolean DEBUGCLOCK = 0;
 const boolean DEBUGSTEPS = 0;
 const boolean DEBUGRAND = 0;
@@ -57,7 +56,7 @@ elapsedMillis lfoCounter = 0;	// millisecond counter to check if next lfo calcul
 //	declare variables
 struct CvPatterns cv;
 struct GatePatterns gate;
-Btn btns[] = { { STEPDN, 12 },{ STEPUP, 20 },{ ENCODER, 23 },{ CHANNEL, 19 },{ ACTION, 21 },{ ACTIONCV, 22 } };		// numbers refer to Teensy digital pin numbers
+Btn btns[] = { { STEPDN, 12 },{ STEPUP, 20 },{ ENCODER, 15 },{ CHANNEL, 19 },{ ACTION, 22 },{ ACTIONCV, 21 } };		// numbers refer to Teensy digital pin numbers
 //MenuItem menu[] = { { 0, "Back", 1 },{ 1, "Save" } };
 std::array<MenuItem, 3> menu{ { { 0, "< Back", 1 },{ 1, "Save" },{ 2, "LFO Mode" } } };
 int menuSize = menu.size();
@@ -65,7 +64,7 @@ int menuSize = menu.size();
 Encoder myEnc(ENCCLKPIN, ENCDATAPIN);
 ClockHandler clock(minBPM, maxBPM);
 DisplayHandler dispHandler;
-actionOpts actionType = ACTSTUTTER;w
+actionOpts actionType = ACTSTUTTER;
 
 void initCvSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
 	numSteps = (numSteps == 0 || numSteps > 8 ? 8 : numSteps);

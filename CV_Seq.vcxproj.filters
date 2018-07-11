@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="KiCad">
+      <UniqueIdentifier>{09f0f35a-adbd-45e8-9680-3e9a6808c96b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="__vm\.PlayDice.vsarduino.h">
@@ -33,10 +36,18 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="PlayDice.ino" />
-    <None Include="KiCad\PlayDice.kicad_pcb" />
-    <None Include="KiCad\PlayDice.net" />
-    <None Include="KiCad\PlayDice.pro" />
-    <None Include="KiCad\PlayDice.sch" />
+    <None Include="KiCad\PlayDice.kicad_pcb">
+      <Filter>KiCad</Filter>
+    </None>
+    <None Include="KiCad\PlayDice.net">
+      <Filter>KiCad</Filter>
+    </None>
+    <None Include="KiCad\PlayDice.pro">
+      <Filter>KiCad</Filter>
+    </None>
+    <None Include="KiCad\PlayDice.sch">
+      <Filter>KiCad</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Adafruit_ssd1306.cpp">
@@ -50,6 +61,8 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Library Include="KiCad\PlayDice-cache.lib" />
+    <Library Include="KiCad\PlayDice-cache.lib">
+      <Filter>KiCad</Filter>
+    </Library>
   </ItemGroup>
 </Project>
