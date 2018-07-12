@@ -62,4 +62,6 @@
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
 
-*.net diff=text
+*.net text
+*.pro text
+
