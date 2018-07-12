@@ -24,8 +24,8 @@ extern uint8_t cvLoopLast;		// last sequence in loop
 extern uint8_t gateLoopFirst;	// first sequence in loop
 extern uint8_t gateLoopLast;	// last sequence in loop
 
-extern std::array<MenuItem, 3> menu;
-extern int menuSize;
+extern std::array<MenuItem, 4> menu;
+//extern int menuSize;
 
 extern float getRandLimit(CvStep s, rndType getUpper);
 extern boolean checkEditing();
@@ -92,7 +92,7 @@ void DisplayHandler::displayLFO() {
 		display.drawPixel(i + 10, y > 0 ? 55 : 40, WHITE);	// draw square wave
 
 		// draw vertical lines on square wave if changing from high to low
-		if (oldY > 0 != y > 0) {
+		if ((oldY > 0) != (y > 0)) {
 			display.drawFastVLine(i + 10, 40, 15, WHITE);
 		}
 		oldY = y;

@@ -4,6 +4,7 @@
 #include "Adafruit_SSD1306.h"
 #include "ClockHandler.h"
 #include "DisplayHandler.h"
+#include "SetupFunctions.h"
 #include "Settings.h"
 #include <array>
 #include <algorithm>
@@ -45,7 +46,6 @@ long oldEncPos = 0;
 boolean actionStutter;			// Stutter triggered by action button
 uint8_t stutterStep;			// When stutter is triggered by action button store stutter step number based on current clock speed 
 uint8_t actionStutterNo = 8;	// Number of stutter steps when triggered by action button
-//boolean lfoMode = 0;				// True if outputing LFO rather than CV/Gate
 float lfoX = 1, lfoY = 0;		// LFO parameters for quick Minsky approximation
 float lfoSpeed;					// lfoSpeed calculated from tempo pot
 float oldLfoSpeed;				// lfoSpeed calculated from tempo pot
@@ -57,20 +57,19 @@ elapsedMillis lfoCounter = 0;	// millisecond counter to check if next lfo calcul
 struct CvPatterns cv;
 struct GatePatterns gate;
 Btn btns[] = { { STEPDN, 12 },{ STEPUP, 20 },{ ENCODER, 15 },{ CHANNEL, 19 },{ ACTION, 22 },{ ACTIONCV, 21 } };		// numbers refer to Teensy digital pin numbers
-//MenuItem menu[] = { { 0, "Back", 1 },{ 1, "Save" } };
-std::array<MenuItem, 3> menu{ { { 0, "< Back", 1 },{ 1, "Save" },{ 2, "LFO Mode" } } };
-int menuSize = menu.size();
+extern std::array<MenuItem, 4> menu;
 
 Encoder myEnc(ENCCLKPIN, ENCDATAPIN);
 ClockHandler clock(minBPM, maxBPM);
 DisplayHandler dispHandler;
+SetupMenu setupMenu;
 actionOpts actionType = ACTSTUTTER;
 
 void initCvSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
 	numSteps = (numSteps == 0 || numSteps > 8 ? 8 : numSteps);
 	cv.seq[seqNum].steps = numSteps;
 	for (int s = 0; s < 8; s++) {
-		cv.seq[seqNum].Steps[s].volts = (initType == INITBLANK ? 2.5 : getRand() * 5);
+		cv.seq[seqNum].Steps[s].volts = 1.5+ ((float)s / 2); // (initType == INITBLANK ? 2.5 : getRand() * 5);
 		cv.seq[seqNum].Steps[s].rand_amt = (initType == INITRAND ? round((getRand() * 10)) : 0);
 		//	Don't want too many stutters so apply two random checks to see if apply stutter, and if so how much
 		if (initType == INITRAND && getRand() > 0.8) {
@@ -126,9 +125,27 @@ void setup() {
 		initGateSequence(p, INITVALS);
 	}
 
+	/*
+	cv.seq[0].Steps[0].volts = 2;
+	cv.seq[0].Steps[1].volts = 2.167;
+	cv.seq[0].Steps[2].volts = 2.333;
+	cv.seq[0].Steps[3].volts = 2.417;
+	cv.seq[0].Steps[4].volts = 2.583;
+	cv.seq[0].Steps[5].volts = 2.75;
+	cv.seq[0].Steps[6].volts = 2.917;
+	cv.seq[0].Steps[7].volts = 3;
+	cv.seq[1].Steps[0].volts = 3;
+	cv.seq[1].Steps[1].volts = 3.167;
+	cv.seq[1].Steps[2].volts = 3.333;
+	cv.seq[1].Steps[3].volts = 3.417;
+	cv.seq[1].Steps[4].volts = 3.583;
+	cv.seq[1].Steps[5].volts = 3.75;
+	cv.seq[1].Steps[6].volts = 3.917;
+	cv.seq[1].Steps[7].volts = 4;
+	*/
 	// initialiase encoder
 	oldEncPos = round(myEnc.read() / 4);
-	lastEditing = 0;		// this somehow gets set to '7' on startup - not sure how at this stage
+	//lastEditing = 0;		// this somehow gets set to '7' on startup - not sure how at this stage
 //	editMode = STEPV;		// this somehow gets set to '1' on startup
 
 	if (editMode == LFO) {
@@ -348,7 +365,7 @@ void loop() {
 			Serial.print("old enc: ");  Serial.println(oldEncPos);
 
 			if (editMode == SETUP) {
-				setupMenu(upOrDown ? ENCUP : ENCDN);
+				setupMenu.menuPicker(upOrDown ? ENCUP : ENCDN);
 			}
 			else {
 
@@ -484,7 +501,7 @@ void loop() {
 			if (btns[b].pressed == 0 && millis() - btns[b].lastPressed > 10) {
 
 				if (editMode == SETUP) {
-					setupMenu(btns[b].name);
+					setupMenu.menuPicker(btns[b].name);
 				}
 				else {
 					if (btns[b].name == STEPUP || btns[b].name == STEPDN) {
@@ -561,6 +578,10 @@ void loop() {
 								else {
 									initGateSequence(gateSeqNo, INITVALS, gate.seq[gateSeqNo].steps);
 								}
+								break;
+							case SETUP:
+								break;
+							case LFO:
 								break;
 							}
 						}
@@ -642,6 +663,7 @@ float getRandLimit(CvStep s, rndType getUpper) {
 	}
 }
 
+/*
 void setupMenu(int action) {
 
 	if (action == ENCUP) {
@@ -680,3 +702,4 @@ void setupMenu(int action) {
 
 
 }
+*/
