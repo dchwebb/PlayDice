@@ -2,6 +2,7 @@
 #include <Adafruit_GFX.h>
 #include "Adafruit_SSD1306.h"
 #include "Settings.h"
+#include "SetupFunctions.h"
 #include "WString.h"
 #include <array>
 
@@ -23,9 +24,9 @@ extern uint8_t cvLoopFirst;		// first sequence in loop
 extern uint8_t cvLoopLast;		// last sequence in loop
 extern uint8_t gateLoopFirst;	// first sequence in loop
 extern uint8_t gateLoopLast;	// last sequence in loop
+extern SetupMenu setupMenu;
 
-extern std::array<MenuItem, 4> menu;
-//extern int menuSize;
+extern std::array<MenuItem, 5> menu;
 
 extern float getRandLimit(CvStep s, rndType getUpper);
 extern boolean checkEditing();
@@ -42,7 +43,7 @@ public:
 	void drawParam(String s, String v, uint8_t x, uint8_t y, uint8_t w, boolean selected);
 	void displayLanes();
 	void displayLFO();
-	void setupMenu();
+	void displaySetup();
 	Adafruit_SSD1306 display;
 private:
 	long clockSignal;
@@ -67,7 +68,7 @@ void DisplayHandler::updateDisplay() {
 		displayLFO();
 	}
 	else if (editMode == SETUP) {
-		setupMenu();
+		displaySetup();
 	} 
 	else {
 		displayLanes();
@@ -102,7 +103,7 @@ void DisplayHandler::displayLFO() {
 }
 
 //	Display setup menu
-void DisplayHandler::setupMenu() {
+void DisplayHandler::displaySetup() {
 	display.drawRect(0, 0, 128, 64, WHITE);
 	display.setTextSize(1);
 	display.setCursor(50, 4);
@@ -121,14 +122,14 @@ void DisplayHandler::setupMenu() {
 	}
 
 
-	for (unsigned int m = 0; m < menu.size(); m++) {
+	for (unsigned int m = 0; m < setupMenu.size(); m++) {
 		display.setCursor(5, 20 + (m * 10));
-		display.print(menu[m].name);
-		String s = (String)menu[m].name;
+		String s = setupMenu.menuName(m);
+		display.print(s);
 
-		//Serial.print("name: "); Serial.print(menu[m].name); Serial.print(" len: "); Serial.print(s.length());
-		if (menu[m].selected) {
-			display.fillRect(3, 19 + (m * 10), menu[m].name.length() * 7, 10, INVERSE);
+		//Serial.print("name: "); Serial.print(s); Serial.print(" len: "); Serial.print(s.length());
+		if (setupMenu.menuSelected(m)) {
+			display.fillRect(3, 19 + (m * 10), s.length() * 7, 10, INVERSE);
 		}
 	}
 }

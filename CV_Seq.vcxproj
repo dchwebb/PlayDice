@@ -87,7 +87,6 @@
     <None Include="PlayDice.ino">
       <FileType>CppCode</FileType>
     </None>
-    <None Include="test.net" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Adafruit_ssd1306.h" />

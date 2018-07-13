@@ -6,6 +6,8 @@
 #include <array>
 #include <EEPROM.h>
 
+extern CvPatterns cv;
+extern GatePatterns gate;
 extern editType editMode;
 extern uint8_t cvLoopFirst;		// first sequence in loop
 extern uint8_t cvLoopLast;		// last sequence in loop
@@ -14,12 +16,15 @@ extern uint8_t gateLoopLast;	// last sequence in loop
 extern uint32_t lastEditing;
 extern void checkEditState();
 
-std::array<MenuItem, 4> menu{ { { 0, "< Back", 1 },{ 1, "Save" },{ 2, "Load" },{ 3, "LFO Mode" } } };
+std::array<MenuItem, 5> menu{ { { 0, "< Back", 1 },{ 1, "Save" },{ 2, "Load" },{ 3, "LFO Mode" },{ 4, "Noise Mode" } } };
 
 
 class SetupMenu {
 public:
 	void menuPicker(int action);
+	uint8_t size();
+	String menuName(uint8_t n);
+	boolean menuSelected(uint8_t n);
 	void saveSettings();
 	void loadSettings();
 private:
@@ -27,7 +32,17 @@ private:
 	int32_t frameStart;
 };
 
+String SetupMenu::menuName(uint8_t n) {
+	return menu[n].name;
+}
 
+boolean SetupMenu::menuSelected(uint8_t n) {
+	return menu[n].selected;
+}
+
+uint8_t SetupMenu::size() {
+	return menu.size();
+}
 
 
 // carry out the screen refresh building the various UI elements
@@ -58,19 +73,19 @@ void SetupMenu::menuPicker(int action) {
 				if (menu[m].name == "< Back") {
 					editMode = STEPV;
 					checkEditState();
-					lastEditing = 0;
+					//lastEditing = 0;
 				}
 				else if (menu[m].name == "Save") {
 					saveSettings();
 					editMode = STEPV;
 					checkEditState();
-					lastEditing = 0;
+					//lastEditing = 0;
 				}
 				else if (menu[m].name == "Load") {
 					loadSettings();
 					editMode = STEPV;
 					checkEditState();
-					lastEditing = 0;
+					//lastEditing = 0;
 				}
 				else if (menu[m].name == "LFO Mode") {
 					editMode = LFO;
@@ -92,7 +107,7 @@ void SetupMenu::saveSettings() {
 	settings[2] = gateLoopFirst;	// first sequence in loop
 	settings[3] = gateLoopLast;		// last sequence in loop
 
-	for (int b = 0; b < 4; b++) {
+	for (uint8_t b = 0; b < 4; b++) {
 		EEPROM.write(b, settings[b]);
 	}
 
@@ -101,7 +116,7 @@ void SetupMenu::saveSettings() {
 	char cvToByte[sizeof(cv)];
 	memcpy(cvToByte, &cv, sizeof(cv));
 	//	Serial.print("Cv Struct: "); Serial.print(sizeof(cv)); Serial.print(" cvToByte Struct: "); Serial.println(sizeof(cvToByte));
-	for (int b = 0; b < sizeof(cv); b++) {		// Write cv array from position 500
+	for (uint16_t b = 0; b < sizeof(cv); b++) {		// Write cv array from position 500
 		EEPROM.write(b + 500, cvToByte[b]);
 	}
 
@@ -110,7 +125,7 @@ void SetupMenu::saveSettings() {
 	char gateToByte[sizeof(gate)];
 	memcpy(gateToByte, &gate, sizeof(gate));
 	//	Serial.print("Cv Struct: "); Serial.print(sizeof(gate)); Serial.print(" gateToByte Struct: "); Serial.println(sizeof(gateToByte));
-	for (int b = 0; b < sizeof(gate); b++) {		// Write gate array from position 1500
+	for (uint16_t b = 0; b < sizeof(gate); b++) {		// Write gate array from position 1500
 		EEPROM.write(b + 1500, gateToByte[b]);
 	}
 
@@ -119,7 +134,7 @@ void SetupMenu::saveSettings() {
 void SetupMenu::loadSettings() {
 	static uint8_t settings[2048];
 
-	for (int b = 0; b < 4; b++) {
+	for (uint8_t b = 0; b < 4; b++) {
 		settings[b] = EEPROM.read(b);
 	}
 	cvLoopFirst = settings[0];		// first sequence in loop
@@ -129,14 +144,14 @@ void SetupMenu::loadSettings() {
 
 	// deserialise cv struct
 	char cvToByte[sizeof(cv)];
-	for (int b = 0; b < sizeof(cv); b++) {
+	for (uint16_t b = 0; b < sizeof(cv); b++) {
 		cvToByte[b] = EEPROM.read(b + 500);
 	}
 	memcpy(&cv, cvToByte, sizeof(cv));
 
 	// deserialise gate struct
 	char gateToByte[sizeof(gate)];
-	for (int b = 0; b < sizeof(gate); b++) {
+	for (uint16_t b = 0; b < sizeof(gate); b++) {
 		gateToByte[b] = EEPROM.read(b + 1500);
 	}
 	memcpy(&gate, gateToByte, sizeof(gate));

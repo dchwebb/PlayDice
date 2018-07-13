@@ -57,7 +57,6 @@ elapsedMillis lfoCounter = 0;	// millisecond counter to check if next lfo calcul
 struct CvPatterns cv;
 struct GatePatterns gate;
 Btn btns[] = { { STEPDN, 12 },{ STEPUP, 20 },{ ENCODER, 15 },{ CHANNEL, 19 },{ ACTION, 22 },{ ACTIONCV, 21 } };		// numbers refer to Teensy digital pin numbers
-extern std::array<MenuItem, 4> menu;
 
 Encoder myEnc(ENCCLKPIN, ENCDATAPIN);
 ClockHandler clock(minBPM, maxBPM);
@@ -145,8 +144,6 @@ void setup() {
 	*/
 	// initialiase encoder
 	oldEncPos = round(myEnc.read() / 4);
-	//lastEditing = 0;		// this somehow gets set to '7' on startup - not sure how at this stage
-//	editMode = STEPV;		// this somehow gets set to '1' on startup
 
 	if (editMode == LFO) {
 		dispHandler.updateDisplay();
@@ -159,7 +156,6 @@ void loop() {
 
 		if (digitalRead(btns[3].pin) == 0 || digitalRead(btns[4].pin) == 0) {
 			editMode = STEPV;
-			//lfoMode = 0;
 			return;
 		}
 
@@ -458,12 +454,12 @@ void loop() {
 					}
 
 				}
+				lastEditing = millis();
 			}
 			if (DEBUGBTNS) { Serial.print("  Encoder: ");  Serial.println(newEncPos); }
 		}
 
 		oldEncPos = newEncPos;
-		lastEditing = millis();
 	}
 
 
@@ -662,44 +658,3 @@ float getRandLimit(CvStep s, rndType getUpper) {
 		return s.volts - ((double)s.rand_amt / 2);
 	}
 }
-
-/*
-void setupMenu(int action) {
-
-	if (action == ENCUP) {
-		for (int m = menu.size() - 2; m > -1; m--) {
-			if (menu[m].selected) {
-				menu[m].selected = 0;
-				menu[m + 1].selected = 1;
-			}
-		}
-	}
-
-	if (action == ENCDN) {
-		for (unsigned int m = 1; m < menu.size(); m++) {
-			if (menu[m].selected) {
-				menu[m].selected = 0;
-				menu[m - 1].selected = 1;
-			}
-		}
-	}
-
-	if (action == ENCODER) {
-		for (unsigned int m = 0; m < menu.size(); m++) {
-			if (menu[m].selected) {
-				Serial.println(menu[m].name);
-				if (menu[m].name == "< Back") {
-					editMode = STEPV;
-				}
-				else if (menu[m].name == "LFO Mode") {
-					//lfoMode = 1;
-					editMode = LFO;
-					//dispHandler.updateDisplay();
-				}
-			}
-		}
-	}
-
-
-}
-*/
