@@ -23,7 +23,7 @@
 #define OLED_CLK   6		// D0 on OLED
 
 // edit modes: STEPV voltage; STEPR random level; STUTTER stutter count, PATTERN pattern number, STEPS in pattern, RANDALL - randomise all settings, RANDVALS - randomise just values
-enum editType { STEPV, STEPR, STUTTER, PATTERN, STEPS, LOOPFIRST, LOOPLAST, SEQOPT, RANDALL, RANDVALS, SETUP, LFO };
+enum editType { STEPV, STEPR, STUTTER, PATTERN, STEPS, LOOPFIRST, LOOPLAST, SEQOPT, RANDALL, RANDVALS, SETUP, LFO, NOISE};
 
 // action mode - what happens when the action button is pressed
 enum actionOpts { ACTRESTART, ACTSTUTTER };
@@ -71,9 +71,10 @@ struct Btn {
 enum btnName { STEPUP, STEPDN, ENCODER, CHANNEL, ACTION, ENCUP, ENCDN, ACTIONCV };
 
 struct MenuItem {
-	int val;
+	int pos;
 	String name;
 	boolean selected;
+	String val = "";
 };
 
 

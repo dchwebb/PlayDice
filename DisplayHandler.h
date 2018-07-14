@@ -26,9 +26,8 @@ extern uint8_t gateLoopFirst;	// first sequence in loop
 extern uint8_t gateLoopLast;	// last sequence in loop
 extern SetupMenu setupMenu;
 
-extern std::array<MenuItem, 5> menu;
-
 extern float getRandLimit(CvStep s, rndType getUpper);
+extern double getRand();
 extern boolean checkEditing();
 extern ClockHandler clock;
 
@@ -64,7 +63,7 @@ void DisplayHandler::updateDisplay() {
 	display.clearDisplay();
 	display.setTextSize(1);
 
-	if (editMode == LFO) {
+	if (editMode == LFO || editMode == NOISE) {
 		displayLFO();
 	}
 	else if (editMode == SETUP) {
@@ -74,7 +73,7 @@ void DisplayHandler::updateDisplay() {
 		displayLanes();
 	}
 
-	if (display.display(editMode == LFO) && DEBUGFRAME) {
+	if (display.display(editMode == LFO || editMode == NOISE) && DEBUGFRAME) {
 		int32_t m = micros();
 		Serial.print("Frame start: "); Serial.print(frameStart); Serial.print(" end: "); Serial.print(m); Serial.print(" time: "); Serial.println(m - frameStart);
 	}
@@ -89,7 +88,12 @@ void DisplayHandler::displayLFO() {
 	{
 		x -= e * y;
 		y += e * x;
-		display.drawPixel(i + 10, 7 + round(8 * (y + 1)), WHITE);	// draw sine wave
+		if (editMode == LFO) {
+			display.drawPixel(i + 10, 7 + round(8 * (y + 1)), WHITE);	// draw sine wave
+		}
+		else {
+			display.drawPixel(i + 10, 7 + round(16 * getRand()), WHITE);	// draw noise wave
+		}
 		display.drawPixel(i + 10, y > 0 ? 55 : 40, WHITE);	// draw square wave
 
 		// draw vertical lines on square wave if changing from high to low
@@ -121,17 +125,33 @@ void DisplayHandler::displaySetup() {
 		display.print("Clock");
 	}
 
-
-	for (unsigned int m = 0; m < setupMenu.size(); m++) {
-		display.setCursor(5, 20 + (m * 10));
-		String s = setupMenu.menuName(m);
-		display.print(s);
-
-		//Serial.print("name: "); Serial.print(s); Serial.print(" len: "); Serial.print(s.length());
+	// can fit four items in menu so check if scrolling required
+	uint8_t menuSelected = 0;
+	for (uint8_t m = 0; m < setupMenu.size(); m++) {
 		if (setupMenu.menuSelected(m)) {
-			display.fillRect(3, 19 + (m * 10), s.length() * 7, 10, INVERSE);
+			menuSelected = m;
+			break;
 		}
 	}
+
+	uint8_t menuStart = round(menuSelected / 4) * 4;
+	for (uint8_t m = 0; m < 4; m++) {
+		// check if there is a menu item to draw
+		if (menuStart + m < setupMenu.size()) {
+			display.setCursor(5, 20 + (m * 10));
+			String v = setupMenu.menuVal(menuStart + m);
+			String s = setupMenu.menuName(menuStart + m) + (String)(v != "" ? ":" + v: "");
+			display.print(s);
+
+			//Serial.print("name: "); Serial.print(s); Serial.print(" len: "); Serial.print(s.length());
+			if (setupMenu.menuSelected(menuStart + m)) {
+				display.fillRect(3, 19 + (m * 10), s.length() * 7, 10, INVERSE);
+			}
+		}
+
+
+	}
+
 }
 
 //	Display CV and Gate Lanes

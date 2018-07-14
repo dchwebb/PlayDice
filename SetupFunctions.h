@@ -2,6 +2,7 @@
 #include <Adafruit_GFX.h>
 #include "Adafruit_SSD1306.h"
 #include "Settings.h"
+#include "DisplayHandler.h"
 #include "WString.h"
 #include <array>
 #include <EEPROM.h>
@@ -14,9 +15,14 @@ extern uint8_t cvLoopLast;		// last sequence in loop
 extern uint8_t gateLoopFirst;	// first sequence in loop
 extern uint8_t gateLoopLast;	// last sequence in loop
 extern uint32_t lastEditing;
+extern boolean autoSave;		// set to true if autosave enabled
+extern boolean saveRequired;	// set to true after editing a parameter needing a save (saves batched to avoid too many writes)
 extern void checkEditState();
+extern void normalMode();
+extern void initCvSequence(int seqNum, seqInitType initType, uint16_t numSteps);
+extern void initGateSequence(int seqNum, seqInitType initType, uint16_t numSteps);
 
-std::array<MenuItem, 5> menu{ { { 0, "< Back", 1 },{ 1, "Save" },{ 2, "Load" },{ 3, "LFO Mode" },{ 4, "Noise Mode" } } };
+std::array<MenuItem, 7> menu{ { { 0, "< Back", 1 },{ 1, "Save" },{ 2, "Load" },{ 3, "LFO Mode" },{ 4, "Noise Mode" },{ 5, "Init All" },{ 6, "Autosave", 0, "N" } } };
 
 
 class SetupMenu {
@@ -25,11 +31,16 @@ public:
 	uint8_t size();
 	String menuName(uint8_t n);
 	boolean menuSelected(uint8_t n);
+	String menuVal(uint8_t n);
+	void setVal(String name, String val);
 	void saveSettings();
-	void loadSettings();
+	boolean loadSettings();		// returns true if settings found in EEPROM
 private:
 	long clockSignal;
 	int32_t frameStart;
+	void romWrite(uint16_t pos, uint8_t val);
+	uint8_t romRead(uint16_t pos);
+
 };
 
 String SetupMenu::menuName(uint8_t n) {
@@ -40,10 +51,22 @@ boolean SetupMenu::menuSelected(uint8_t n) {
 	return menu[n].selected;
 }
 
+String SetupMenu::menuVal(uint8_t n) {
+	return menu[n].val;
+}
+
 uint8_t SetupMenu::size() {
 	return menu.size();
 }
 
+void SetupMenu::setVal(String name, String val) {
+	// Sets the value of a menu item by name
+	for (uint8_t m = 0; m < menu.size(); m++) {
+		if (menu[m].name == name) {
+			menu[m].val = val;
+		}
+	}
+}
 
 // carry out the screen refresh building the various UI elements
 void SetupMenu::menuPicker(int action) {
@@ -71,89 +94,128 @@ void SetupMenu::menuPicker(int action) {
 			if (menu[m].selected) {
 				Serial.println(menu[m].name);
 				if (menu[m].name == "< Back") {
-					editMode = STEPV;
-					checkEditState();
-					//lastEditing = 0;
+					normalMode();
 				}
 				else if (menu[m].name == "Save") {
 					saveSettings();
-					editMode = STEPV;
-					checkEditState();
-					//lastEditing = 0;
+					normalMode();
 				}
 				else if (menu[m].name == "Load") {
 					loadSettings();
-					editMode = STEPV;
-					checkEditState();
-					//lastEditing = 0;
+					normalMode();
 				}
 				else if (menu[m].name == "LFO Mode") {
 					editMode = LFO;
+					if (autoSave) {
+						saveSettings();
+					}
+				}
+				else if (menu[m].name == "Noise Mode") {
+					editMode = NOISE;
+					if (autoSave) {
+						saveSettings();
+					}
+				}
+				else if (menu[m].name == "Init All") {
+					for (int p = 0; p < 8; p++) {
+						initCvSequence(p, INITRAND, 8);
+						srand(micros());
+						initGateSequence(p, INITRAND, 8);
+					}
+					normalMode();
+				}
+				else if (menu[m].name == "Autosave") {
+					autoSave = !autoSave;
+					saveSettings();
+					menu[m].val = autoSave ? "Y" : "N";
 				}
 			}
 		}
 	}
 }
 
+void SetupMenu::romWrite(uint16_t pos, uint8_t val) {
+	if (EEPROM.read(pos) != val) {
+		EEPROM.write(pos, val);
+		Serial.print("write: "); Serial.print(pos); Serial.print(": "); Serial.println(val);
+	}
+}
+
+uint8_t SetupMenu::romRead(uint16_t pos) {
+	return EEPROM.read(pos);
+}
 
 void SetupMenu::saveSettings() {
-	static uint8_t settings[2048];
+	saveRequired = 0;
 
 	// write variables and cv/gate structs to EEPROM (2048 bytes in Teensy 3.2)
 	// to provide some future proofing store variables from 0, cv struct (est 544 bytes) from 500, gate struct (est 144 bytes from 1500)
-	
-	settings[0] = cvLoopFirst;		// first sequence in loop
-	settings[1] = cvLoopLast;		// last sequence in loop
-	settings[2] = gateLoopFirst;	// first sequence in loop
-	settings[3] = gateLoopLast;		// last sequence in loop
 
-	for (uint8_t b = 0; b < 4; b++) {
-		EEPROM.write(b, settings[b]);
-	}
+	//	Basic header to check if settings are saved - ASCII values of 'PD' followed by version
+	romWrite(0, 80);
+	romWrite(1, 68);
+	romWrite(2, 1);
 
+	romWrite(3, cvLoopFirst);		// first sequence in loop
+	romWrite(4, cvLoopLast);		// last sequence in loop
+	romWrite(5, gateLoopFirst);		// first sequence in loop
+	romWrite(6, gateLoopLast);		// last sequence in loop
+
+	romWrite(7, (editMode == LFO));		// LFO Mode
+	romWrite(8, (editMode == NOISE));	// Noise Mode
+
+	romWrite(9, autoSave);	// Noise Mode
 
 	// Serialise cv struct
 	char cvToByte[sizeof(cv)];
 	memcpy(cvToByte, &cv, sizeof(cv));
-	//	Serial.print("Cv Struct: "); Serial.print(sizeof(cv)); Serial.print(" cvToByte Struct: "); Serial.println(sizeof(cvToByte));
 	for (uint16_t b = 0; b < sizeof(cv); b++) {		// Write cv array from position 500
-		EEPROM.write(b + 500, cvToByte[b]);
+		romWrite(b + 500, cvToByte[b]);
 	}
-
 
 	// Serialise gate struct
 	char gateToByte[sizeof(gate)];
 	memcpy(gateToByte, &gate, sizeof(gate));
-	//	Serial.print("Cv Struct: "); Serial.print(sizeof(gate)); Serial.print(" gateToByte Struct: "); Serial.println(sizeof(gateToByte));
 	for (uint16_t b = 0; b < sizeof(gate); b++) {		// Write gate array from position 1500
-		EEPROM.write(b + 1500, gateToByte[b]);
+		romWrite(b + 1500, gateToByte[b]);
 	}
 
 }
 
-void SetupMenu::loadSettings() {
-	static uint8_t settings[2048];
+boolean SetupMenu::loadSettings() {
 
-	for (uint8_t b = 0; b < 4; b++) {
-		settings[b] = EEPROM.read(b);
+	if (romRead(0) != 80 || romRead(1) != 68 || romRead(2) != 1) {
+		Serial.println("Read Error - header corrupt");
+		return 0;
 	}
-	cvLoopFirst = settings[0];		// first sequence in loop
-	cvLoopLast = settings[1];		// last sequence in loop
-	gateLoopFirst = settings[2];	// first sequence in loop
-	gateLoopLast = settings[3];		// last sequence in loop
+
+	cvLoopFirst = romRead(3);		// first sequence in loop
+	cvLoopLast = romRead(4);		// last sequence in loop
+	gateLoopFirst = romRead(5);		// first sequence in loop
+	gateLoopLast = romRead(6);		// last sequence in loop
+
+	if (romRead(7)) {
+		editMode = LFO;
+	}
+	else if (romRead(8)) {
+		editMode = NOISE;
+	}
+	autoSave = romRead(9);
+	setVal("Autosave", autoSave ? "Y" : "N");
 
 	// deserialise cv struct
 	char cvToByte[sizeof(cv)];
 	for (uint16_t b = 0; b < sizeof(cv); b++) {
-		cvToByte[b] = EEPROM.read(b + 500);
+		cvToByte[b] = romRead(b + 500);
 	}
 	memcpy(&cv, cvToByte, sizeof(cv));
 
 	// deserialise gate struct
 	char gateToByte[sizeof(gate)];
 	for (uint16_t b = 0; b < sizeof(gate); b++) {
-		gateToByte[b] = EEPROM.read(b + 1500);
+		gateToByte[b] = romRead(b + 1500);
 	}
 	memcpy(&gate, gateToByte, sizeof(gate));
 
+	return 1;
 }

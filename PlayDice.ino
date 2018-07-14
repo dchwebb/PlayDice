@@ -24,8 +24,8 @@ elapsedMillis debugCounter = 0;	// used to show debug data only every couple of 
 unsigned long stepStart;		// time each new step starts
 uint32_t guessNextStep;			// guesstimate of when next step will fall - to avoid display firing at wrong time
 uint32_t lastEditing = 0;		// ms counter to show detailed edit parameters while editing or just after
-uint8_t voltsMin = 0;			// Minimum allowed voltage amt per step
-uint8_t voltsMax = 5;			// Maximum allowed voltage amt
+boolean saveRequired;			// set to true after editing a parameter needing a save (saves batched to avoid too many writes)
+boolean autoSave = 1;				// set to true if autosave enabled
 float cvRandVal = 0;			// Voltage of current step with randomisation applied
 boolean gateRandVal;			// 1 or 0 according to whether gate is high or low after randomisation
 uint8_t cvStutterStep;			// if a step is in stutter mode store the count of the current stutters 
@@ -68,7 +68,7 @@ void initCvSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
 	numSteps = (numSteps == 0 || numSteps > 8 ? 8 : numSteps);
 	cv.seq[seqNum].steps = numSteps;
 	for (int s = 0; s < 8; s++) {
-		cv.seq[seqNum].Steps[s].volts = 1.5+ ((float)s / 2); // (initType == INITBLANK ? 2.5 : getRand() * 5);
+		cv.seq[seqNum].Steps[s].volts = (initType == INITBLANK ? 2.5 : getRand() * 5);
 		cv.seq[seqNum].Steps[s].rand_amt = (initType == INITRAND ? round((getRand() * 10)) : 0);
 		//	Don't want too many stutters so apply two random checks to see if apply stutter, and if so how much
 		if (initType == INITRAND && getRand() > 0.8) {
@@ -79,7 +79,7 @@ void initCvSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
 		}
 	}
 }
-void initGateSequence(int seqNum, seqInitType initType, uint16_t numSteps = 2) {
+void initGateSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
 	numSteps = (numSteps == 0 || numSteps > 8 ? 8 : numSteps);
 	gate.seq[seqNum].steps = numSteps;
 	for (int s = 0; s < 8; s++) {
@@ -116,15 +116,18 @@ void setup() {
 		pinMode(btns[b].pin, INPUT_PULLUP);
 	}
 
-	//  Set up CV and Gate patterns
-	srand(micros());
-	for (int p = 0; p < 8; p++) {
-		initCvSequence(p, INITVALS);
+	if (!setupMenu.loadSettings()) {
+		//  Set up CV and Gate patterns
 		srand(micros());
-		initGateSequence(p, INITVALS);
+		for (int p = 0; p < 8; p++) {
+			initCvSequence(p, INITRAND);
+			srand(micros());
+			initGateSequence(p, INITRAND);
+		}
 	}
 
 	/*
+	// test scale settings - values are voltages for a 2 octave major scale
 	cv.seq[0].Steps[0].volts = 2;
 	cv.seq[0].Steps[1].volts = 2.167;
 	cv.seq[0].Steps[2].volts = 2.333;
@@ -142,20 +145,24 @@ void setup() {
 	cv.seq[1].Steps[6].volts = 3.917;
 	cv.seq[1].Steps[7].volts = 4;
 	*/
+
 	// initialiase encoder
 	oldEncPos = round(myEnc.read() / 4);
 
-	if (editMode == LFO) {
+	if (editMode == LFO || editMode == NOISE) {
 		dispHandler.updateDisplay();
 	}
 }
 
 void loop() {
 
-	if (editMode == LFO) {
+	if (editMode == LFO || editMode == NOISE) {
 
 		if (digitalRead(btns[3].pin) == 0 || digitalRead(btns[4].pin) == 0) {
-			editMode = STEPV;
+			normalMode();
+			if (autoSave) {
+				setupMenu.saveSettings();
+			}
 			return;
 		}
 
@@ -190,11 +197,17 @@ void loop() {
 		}
 
 		//  DAC buffer takes values of 0 to 4095 relating to 0v to 3.3v
-		analogWrite(DACPIN, round(2047 * (lfoY + 1)));
+		if (editMode == LFO) {
+			analogWrite(DACPIN, round(2047 * (lfoY + 1)));
+		}
+		else {
+			analogWrite(DACPIN, round(4095 * getRand()));
+		}
 		digitalWrite(GATEOUT, lfoY > 0);
 		
 		return;
 	}
+
 
 	//	read value of clock signal if present and set bmp accordingly
 	clockBPM = clock.readClock();
@@ -302,7 +315,7 @@ void loop() {
 			}
 			float randLower = getRandLimit(cv.seq[cvSeqNo].Steps[cvStep], LOWER);
 			float randUpper = getRandLimit(cv.seq[cvSeqNo].Steps[cvStep], UPPER);
-			cvRandVal = constrain(randLower + (getRand() * (randUpper - randLower)), 0, voltsMax);
+			cvRandVal = constrain(randLower + (getRand() * (randUpper - randLower)), 0, 5);
 			setCV(cvRandVal);
 			if (DEBUGRAND) {
 				Serial.print("CV  S: "); Serial.print(cvStep);	Serial.print(" V: "); Serial.print(cv.seq[cvSeqNo].Steps[cvStep].volts); Serial.print(" Rnd: "); Serial.println(cv.seq[cvSeqNo].Steps[cvStep].rand_amt);
@@ -354,11 +367,9 @@ void loop() {
 
 		// check editing mode is valid for selected step type
 		checkEditState();
-		Serial.print("edit state: ");  Serial.println(editMode);
+		//Serial.print("edit state: ");  Serial.println(editMode);
 		if (round(newEncPos / 4) != round(oldEncPos / 4)) {
 			boolean upOrDown = newEncPos > oldEncPos;
-			Serial.print("new enc: ");  Serial.println(newEncPos);
-			Serial.print("old enc: ");  Serial.println(oldEncPos);
 
 			if (editMode == SETUP) {
 				setupMenu.menuPicker(upOrDown ? ENCUP : ENCDN);
@@ -455,6 +466,7 @@ void loop() {
 
 				}
 				lastEditing = millis();
+				saveRequired = 1;
 			}
 			if (DEBUGBTNS) { Serial.print("  Encoder: ");  Serial.println(newEncPos); }
 		}
@@ -477,7 +489,7 @@ void loop() {
 				if (millis() - btns[b].lastPressed < 500) {
 					if (DEBUGBTNS) Serial.println("Btn: Channel");
 					if (editMode == SETUP) {
-						editMode = STEPV;
+						normalMode();
 					}
 					else {
 						activeSeq = (activeSeq == SEQGATE ? SEQCV : SEQGATE);
@@ -579,6 +591,8 @@ void loop() {
 								break;
 							case LFO:
 								break;
+							case NOISE:
+								break;
 							}
 						}
 						else {
@@ -604,31 +618,26 @@ void loop() {
 		}
 	}
 
-	////	if both buttons pressed at the same time switch between gate and cv patterns
-	//if (btns[STEPUP].pressed && btns[STEPDN].pressed) {
-	//	if (bothButtons == 0) {
-	//		if (DEBUGBTNS)
-	//			Serial.println(" BOTH");
-	//		bothButtons = 1;
-	//		activeSeq = (activeSeq == SEQGATE ? SEQCV : SEQGATE);
-	//		lastEditing = 0;
-	//	}
-	//}
-	//else {
-	//	bothButtons = 0;
-	//}
-
 	// about the longest display update time is 2 milliseconds so don't update display if less than 5 milliseconds until the next expected event (step change or clock tick)
-	if (millis() > 1000 && guessNextStep - millis() > 5 && clock.clockHighTime + clock.clockInterval - millis() > 5) {
+	uint32_t m = millis();
+	if (m > 1000 && guessNextStep - m > 5 && clock.clockHighTime + clock.clockInterval - m > 5) {
 		dispHandler.updateDisplay();
 	}
+
+	//	Check if there is a pending save and no edits in the last ten seconds
+	m = millis();
+	if (autoSave && saveRequired && m - lastEditing > 10000 && m > 1000 && guessNextStep - m > 5 && clock.clockHighTime + clock.clockInterval - m > 5) {
+		Serial.println("Autosave triggered");
+		setupMenu.saveSettings();
+	}
+
 }
 
 
 void setCV(float setVolt) {
 	//  DAC buffer takes values of 0 to 4095 relating to 0v to 3.3v
 	//  setVolt will be in range 0 - voltsMax (5 unless trying to do pitch which might need negative)
-	float dacVolt = setVolt / voltsMax * 4095;
+	float dacVolt = setVolt / 5 * 4095;
 	analogWrite(DACPIN, (int)dacVolt);
 }
 
@@ -647,6 +656,16 @@ void checkEditState() {
 		if (editStep > -1 && !(editMode == STEPV || editMode == STEPR || editMode == STUTTER)) {
 			editMode = STEPV;
 		}
+	}
+}
+
+void normalMode() {
+	// return to normal step or pattern editing after LFO mode, setup menu etc
+	lastEditing = 0;
+	if (editStep == -1) {
+		editMode = PATTERN;
+	} else {
+		editMode = STEPV;
 	}
 }
 
