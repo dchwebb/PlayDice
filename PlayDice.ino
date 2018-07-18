@@ -56,7 +56,7 @@ elapsedMillis lfoCounter = 0;	// millisecond counter to check if next lfo calcul
 //	declare variables
 struct CvPatterns cv;
 struct GatePatterns gate;
-Btn btns[] = { { STEPDN, 12 },{ STEPUP, 20 },{ ENCODER, 15 },{ CHANNEL, 19 },{ ACTION, 22 },{ ACTIONCV, 21 } };		// numbers refer to Teensy digital pin numbers
+Btn btns[] = { { STEPDN, 22 },{ STEPUP, 12 },{ ENCODER, 15 },{ CHANNEL, 19 },{ ACTION, 20 },{ ACTIONCV, 21 } };		// numbers refer to Teensy digital pin numbers
 
 Encoder myEnc(ENCCLKPIN, ENCDATAPIN);
 ClockHandler clock(minBPM, maxBPM);
@@ -70,9 +70,9 @@ void initCvSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
 	for (int s = 0; s < 8; s++) {
 		cv.seq[seqNum].Steps[s].volts = (initType == INITBLANK ? 2.5 : getRand() * 5);
 		cv.seq[seqNum].Steps[s].rand_amt = (initType == INITRAND ? round((getRand() * 10)) : 0);
-		//	Don't want too many stutters so apply two random checks to see if apply stutter, and if so how much
+		//	Don't want too many stutters so apply two random checks to see if apply stutter, and if so how much - minimum number of stutters is 2
 		if (initType == INITRAND && getRand() > 0.8) {
-			cv.seq[seqNum].Steps[s].stutter = round((getRand() * 7));
+			cv.seq[seqNum].Steps[s].stutter = round((getRand() * 6) + 1);
 		}
 		else {
 			cv.seq[seqNum].Steps[s].stutter = 0;
@@ -87,7 +87,7 @@ void initGateSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
 		gate.seq[seqNum].Steps[s].rand_amt = (initType == INITRAND ? round((getRand() * 10)) : 0);
 		//	Don't want too many stutters so apply two random checks to see if apply stutter, and if so how much
 		if (initType == INITRAND && getRand() > 0.8) {
-			gate.seq[seqNum].Steps[s].stutter = round((getRand() * 7));
+			gate.seq[seqNum].Steps[s].stutter = round((getRand() * 6) + 1);
 		}
 		else {
 			gate.seq[seqNum].Steps[s].stutter = 0;
@@ -406,7 +406,7 @@ void loop() {
 							Serial.print("rand: "); Serial.print(s->rand_amt);
 						}
 						if (editMode == STUTTER && (upOrDown || s->stutter > 0) && (!upOrDown || s->stutter < 8)) {
-							s->stutter += upOrDown ? 1 : -1;
+							s->stutter += upOrDown ? (s->stutter == 0 ? 2 : 1) : (s->stutter == 2 ? -2 : -1);
 							Serial.print("stutter: "); Serial.print(s->stutter);
 						}
 					}

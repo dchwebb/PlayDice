@@ -16,11 +16,11 @@
 #define DACPIN 40		// CV sequence out
 
 
-#define OLED_CS    2
-#define OLED_DC    3
-#define OLED_RESET 4
-#define OLED_MOSI  5		// D1 on OLED
-#define OLED_CLK   6		// D0 on OLED
+#define OLED_CS    9
+#define OLED_DC    8
+#define OLED_RESET 7
+#define OLED_MOSI  6		// D1 on OLED
+#define OLED_CLK   5		// D0 on OLED
 
 // edit modes: STEPV voltage; STEPR random level; STUTTER stutter count, PATTERN pattern number, STEPS in pattern, RANDALL - randomise all settings, RANDVALS - randomise just values
 enum editType { STEPV, STEPR, STUTTER, PATTERN, STEPS, LOOPFIRST, LOOPLAST, SEQOPT, RANDALL, RANDVALS, SETUP, LFO, NOISE};
