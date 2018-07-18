@@ -31,6 +31,8 @@ extern double getRand();
 extern boolean checkEditing();
 extern ClockHandler clock;
 
+static String const pitches[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+
 class DisplayHandler {
 public:
 	DisplayHandler();
@@ -43,6 +45,7 @@ public:
 	void displayLanes();
 	void displayLFO();
 	void displaySetup();
+	String pitchFromVolt(float v);
 	Adafruit_SSD1306 display;
 private:
 	long clockSignal;
@@ -53,7 +56,6 @@ private:
 DisplayHandler::DisplayHandler() :
 	display(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS) {
 }
-
 
 // carry out the screen refresh building the various UI elements
 void DisplayHandler::updateDisplay() {
@@ -110,15 +112,21 @@ void DisplayHandler::displayLFO() {
 void DisplayHandler::displaySetup() {
 	display.drawRect(0, 0, 128, 64, WHITE);
 	display.setTextSize(1);
-	display.setCursor(50, 4);
+	display.setCursor(5, 4);
 	display.print("Setup");
 	display.drawFastHLine(0, 15, 128, WHITE);
-	display.drawFastVLine(80, 15, 64, WHITE);
-
-	display.setCursor(85, 20);
+	display.setCursor(65, 4);
 	display.print("BPM");
-	display.setCursor(85, 30);
+	display.setCursor(85, 4);
 	display.print(bpm);
+
+
+	//display.drawFastVLine(80, 15, 64, WHITE);
+
+	//display.setCursor(85, 20);
+	//display.print("BPM");
+	//display.setCursor(85, 30);
+	//display.print(bpm);
 
 	if (clock.hasSignal()) {
 		display.setCursor(85, 50);
@@ -305,7 +313,8 @@ void DisplayHandler::displayLanes() {
 
 		if (activeSeq == SEQCV) {
 			if (editMode == STEPR || editMode == STEPV || editMode == STUTTER) {
-				drawParam("Volts", String(cv.seq[cvSeqNo].Steps[editStep].volts), 0, 40, 36, editMode == STEPV);
+				String v = pitchMode ? pitchFromVolt(cv.seq[cvSeqNo].Steps[editStep].volts) : String(cv.seq[cvSeqNo].Steps[editStep].volts);
+				drawParam(pitchMode ? "Pitch" : "Volts", v, 0, 40, 36, editMode == STEPV);
 				drawParam("Random", String(cv.seq[cvSeqNo].Steps[editStep].rand_amt), 38, 40, 44, editMode == STEPR);
 				drawParam("Stutter", String(cv.seq[cvSeqNo].Steps[editStep].stutter), 81, 40, 47, editMode == STUTTER);
 			}
@@ -352,6 +361,13 @@ void DisplayHandler::drawParam(String s, String v, uint8_t x, uint8_t y, uint8_t
 	}
 }
 
+//	returns the nearest note name from a given 1v/oct voltage
+String DisplayHandler::pitchFromVolt(float v) {
+	//uint8_t octave = round(v);
+	//uint8_t pitch = round(v * 12) % 12;
+	//Serial.print("v: "); Serial.print(v); Serial.print(" v x60: "); Serial.print(round(v * 60)); Serial.print(" p: "); Serial.println(pitch);
+	return pitches[round(v * 12) % 12] + (String)round(v);
+}
 
 void DisplayHandler::init() {
 	const unsigned char diceBitmap[] = {

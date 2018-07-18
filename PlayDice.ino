@@ -25,7 +25,7 @@ unsigned long stepStart;		// time each new step starts
 uint32_t guessNextStep;			// guesstimate of when next step will fall - to avoid display firing at wrong time
 uint32_t lastEditing = 0;		// ms counter to show detailed edit parameters while editing or just after
 boolean saveRequired;			// set to true after editing a parameter needing a save (saves batched to avoid too many writes)
-boolean autoSave = 1;				// set to true if autosave enabled
+boolean autoSave = 1;			// set to true if autosave enabled
 float cvRandVal = 0;			// Voltage of current step with randomisation applied
 boolean gateRandVal;			// 1 or 0 according to whether gate is high or low after randomisation
 uint8_t cvStutterStep;			// if a step is in stutter mode store the count of the current stutters 
@@ -50,7 +50,7 @@ float lfoX = 1, lfoY = 0;		// LFO parameters for quick Minsky approximation
 float lfoSpeed;					// lfoSpeed calculated from tempo pot
 float oldLfoSpeed;				// lfoSpeed calculated from tempo pot
 uint8_t lfoJitter;				// because the analog pot is more sensitive at the bottom of its range adjust the threshold before detecting a pot turn
-
+boolean pitchMode;				// set to true if CV lane displays and quantises to pitches
 elapsedMillis lfoCounter = 0;	// millisecond counter to check if next lfo calculation is due
 
 //	declare variables
@@ -382,7 +382,12 @@ void loop() {
 					if (activeSeq == SEQCV) {
 						CvStep *s = &cv.seq[cvSeqNo].Steps[editStep];
 						if (editMode == STEPV) {
-							s->volts += upOrDown ? 0.10 : -0.10;
+							if (pitchMode) {
+								s->volts = quantiseVolts(s->volts + (upOrDown ? 0.08333 : -0.08333));
+							}
+							else {
+								s->volts += upOrDown ? 0.10 : -0.10;
+							}
 							s->volts = constrain(s->volts, 0, 5);
 							Serial.print("volts: "); Serial.print(s->volts);
 						}
@@ -391,7 +396,7 @@ void loop() {
 							Serial.print("rand: "); Serial.print(s->rand_amt);
 						}
 						if (editMode == STUTTER && (upOrDown || s->stutter > 0) && (!upOrDown || s->stutter < 8)) {
-							s->stutter += upOrDown ? 1 : -1;
+							s->stutter += upOrDown ? (s->stutter == 0 ? 2 : 1) : (s->stutter == 2 ? -2 : -1);
 							Serial.print("stutter: "); Serial.print(s->stutter);
 						}
 					}
@@ -676,4 +681,8 @@ float getRandLimit(CvStep s, rndType getUpper) {
 	else {
 		return s.volts - ((double)s.rand_amt / 2);
 	}
+}
+
+float quantiseVolts(float v) {
+	return (float)round(v * 12) / 12;
 }

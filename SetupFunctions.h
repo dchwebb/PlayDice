@@ -16,13 +16,18 @@ extern uint8_t gateLoopFirst;	// first sequence in loop
 extern uint8_t gateLoopLast;	// last sequence in loop
 extern uint32_t lastEditing;
 extern boolean autoSave;		// set to true if autosave enabled
+extern boolean pitchMode;		// set to true if CV mode displays as pitches
 extern boolean saveRequired;	// set to true after editing a parameter needing a save (saves batched to avoid too many writes)
 extern void checkEditState();
 extern void normalMode();
 extern void initCvSequence(int seqNum, seqInitType initType, uint16_t numSteps);
 extern void initGateSequence(int seqNum, seqInitType initType, uint16_t numSteps);
 
-std::array<MenuItem, 7> menu{ { { 0, "< Back", 1 },{ 1, "Save" },{ 2, "Load" },{ 3, "LFO Mode" },{ 4, "Noise Mode" },{ 5, "Init All" },{ 6, "Autosave", 0, "N" } } };
+// action mode - what happens when the action button is pressed
+static String const OffOnOpts[] = { "Off", "On"};
+
+std::array<MenuItem, 8> menu{ { { 0, "< Back", 1 },{ 1, "Save Settings" },{ 2, "Load Settings" },{ 3, "LFO Mode" },{ 4, "Noise Mode" },{ 5, "Init All" },
+ { 6, "Autosave", 0, OffOnOpts[0] },{ 7, "Pitch Mode", 0, OffOnOpts[0] } } };
 
 
 class SetupMenu {
@@ -96,11 +101,11 @@ void SetupMenu::menuPicker(int action) {
 				if (menu[m].name == "< Back") {
 					normalMode();
 				}
-				else if (menu[m].name == "Save") {
+				else if (menu[m].name == "Save Settings") {
 					saveSettings();
 					normalMode();
 				}
-				else if (menu[m].name == "Load") {
+				else if (menu[m].name == "Load Settings") {
 					loadSettings();
 					normalMode();
 				}
@@ -127,7 +132,12 @@ void SetupMenu::menuPicker(int action) {
 				else if (menu[m].name == "Autosave") {
 					autoSave = !autoSave;
 					saveSettings();
-					menu[m].val = autoSave ? "Y" : "N";
+					menu[m].val = OffOnOpts[autoSave];
+				}
+				else if (menu[m].name == "Pitch Mode") {
+					pitchMode = !pitchMode;
+					saveSettings();
+					menu[m].val = OffOnOpts[pitchMode];
 				}
 			}
 		}
@@ -201,7 +211,7 @@ boolean SetupMenu::loadSettings() {
 		editMode = NOISE;
 	}
 	autoSave = romRead(9);
-	setVal("Autosave", autoSave ? "Y" : "N");
+	setVal("Autosave", OffOnOpts[autoSave]);
 
 	// deserialise cv struct
 	char cvToByte[sizeof(cv)];
