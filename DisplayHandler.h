@@ -24,14 +24,18 @@ extern uint8_t cvLoopFirst;		// first sequence in loop
 extern uint8_t cvLoopLast;		// last sequence in loop
 extern uint8_t gateLoopFirst;	// first sequence in loop
 extern uint8_t gateLoopLast;	// last sequence in loop
+extern boolean pitchMode;		// set to true if CV mode displays as pitches
+extern uint8_t quantRoot;		// if quantising in pitchmode sets root note
+extern uint8_t quantScale;		// if quantising in pitchmode sets scale
 extern SetupMenu setupMenu;
-
 extern float getRandLimit(CvStep s, rndType getUpper);
 extern double getRand();
 extern boolean checkEditing();
 extern ClockHandler clock;
-
-static String const pitches[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+extern const String pitches[];
+extern const String *submenuArray;
+extern uint8_t submenuSize;			// number of items in array used to pick from submenu items
+extern uint8_t submenuVal;				// currently selected submenu item
 
 class DisplayHandler {
 public:
@@ -68,7 +72,7 @@ void DisplayHandler::updateDisplay() {
 	if (editMode == LFO || editMode == NOISE) {
 		displayLFO();
 	}
-	else if (editMode == SETUP) {
+	else if (editMode == SETUP || editMode == SUBMENU) {
 		displaySetup();
 	} 
 	else {
@@ -133,31 +137,68 @@ void DisplayHandler::displaySetup() {
 		display.print("Clock");
 	}
 
-	// can fit four items in menu so check if scrolling required
-	uint8_t menuSelected = 0;
-	for (uint8_t m = 0; m < setupMenu.size(); m++) {
-		if (setupMenu.menuSelected(m)) {
-			menuSelected = m;
-			break;
+	if (editMode == SUBMENU) {
+
+		uint8_t menuStart = round(submenuVal / 4) * 4;
+		for (uint8_t m = 0; m < 4; m++) {
+			// check if there is a menu item to draw
+			if (menuStart + m < submenuSize) {
+				display.setCursor(10, 20 + (m * 10));
+				String s = submenuArray[menuStart + m];
+				display.print(s);
+
+				//Serial.print("name: "); Serial.print(s); Serial.print(" len: "); Serial.print(s.length());
+				if (menuStart + m == submenuVal) {
+					display.fillRect(8, 19 + (m * 10), s.length() * 8, 10, INVERSE);
+				}
+			}
 		}
+		// draw up/down arrows if there are pages of menu items before/after current page
+		if (submenuVal > 3) {
+			display.setCursor(120, 20);
+			display.write(24);		// writes an arrow from the Adafruit library
+		}
+		if (menuStart + 4 < submenuSize) {
+			display.setCursor(120, 50);
+			display.write(25);		// writes an arrow from the Adafruit library
+		}
+
 	}
+	else {
 
-	uint8_t menuStart = round(menuSelected / 4) * 4;
-	for (uint8_t m = 0; m < 4; m++) {
-		// check if there is a menu item to draw
-		if (menuStart + m < setupMenu.size()) {
-			display.setCursor(5, 20 + (m * 10));
-			String v = setupMenu.menuVal(menuStart + m);
-			String s = setupMenu.menuName(menuStart + m) + (String)(v != "" ? ":" + v: "");
-			display.print(s);
-
-			//Serial.print("name: "); Serial.print(s); Serial.print(" len: "); Serial.print(s.length());
-			if (setupMenu.menuSelected(menuStart + m)) {
-				display.fillRect(3, 19 + (m * 10), s.length() * 7, 10, INVERSE);
+		// can fit four items in menu so check if scrolling required
+		uint8_t menuSelected = 0;
+		for (uint8_t m = 0; m < setupMenu.size(); m++) {
+			if (setupMenu.menuSelected(m)) {
+				menuSelected = m;
+				break;
 			}
 		}
 
+		uint8_t menuStart = round(menuSelected / 4) * 4;
+		for (uint8_t m = 0; m < 4; m++) {
+			// check if there is a menu item to draw
+			if (menuStart + m < setupMenu.size()) {
+				display.setCursor(5, 20 + (m * 10));
+				String v = setupMenu.menuVal(menuStart + m);
+				String s = setupMenu.menuName(menuStart + m) + (String)(v != "" ? ":" + v : "");
+				display.print(s);
 
+				//Serial.print("name: "); Serial.print(s); Serial.print(" len: "); Serial.print(s.length());
+				if (setupMenu.menuSelected(menuStart + m)) {
+					display.fillRect(3, 19 + (m * 10), s.length() * 7, 10, INVERSE);
+				}
+			}
+		}
+		// draw up/down arrows if there are pages of menu items before/after current page
+		if (menuSelected > 3) {
+			display.setCursor(120, 20);
+			display.write(24);		// writes an arrow from the Adafruit library
+		}
+		if (menuStart + 4 < setupMenu.size()) {
+			display.setCursor(120, 50);
+			display.write(25);		// writes an arrow from the Adafruit library
+		}
 	}
 
 }

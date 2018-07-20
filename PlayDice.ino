@@ -51,12 +51,17 @@ float lfoSpeed;					// lfoSpeed calculated from tempo pot
 float oldLfoSpeed;				// lfoSpeed calculated from tempo pot
 uint8_t lfoJitter;				// because the analog pot is more sensitive at the bottom of its range adjust the threshold before detecting a pot turn
 boolean pitchMode;				// set to true if CV lane displays and quantises to pitches
+uint8_t quantRoot;				// if quantising in pitchmode sets root note
+uint8_t quantScale;				// if quantising in pitchmode sets scale
 elapsedMillis lfoCounter = 0;	// millisecond counter to check if next lfo calculation is due
+uint8_t submenuSize;			// number of items in array used to pick from submenu items
+uint8_t submenuVal;				// currently selected submenu item
 
 //	declare variables
 struct CvPatterns cv;
 struct GatePatterns gate;
 Btn btns[] = { { STEPDN, 22 },{ STEPUP, 12 },{ ENCODER, 15 },{ CHANNEL, 19 },{ ACTION, 20 },{ ACTIONCV, 21 } };		// numbers refer to Teensy digital pin numbers
+
 
 Encoder myEnc(ENCCLKPIN, ENCDATAPIN);
 ClockHandler clock(minBPM, maxBPM);
@@ -371,7 +376,7 @@ void loop() {
 		if (round(newEncPos / 4) != round(oldEncPos / 4)) {
 			boolean upOrDown = newEncPos > oldEncPos;
 
-			if (editMode == SETUP) {
+			if (editMode == SETUP || editMode == SUBMENU) {
 				setupMenu.menuPicker(upOrDown ? ENCUP : ENCDN);
 			}
 			else {
@@ -513,7 +518,7 @@ void loop() {
 			//  check if button has been pressed (previous state off and over x milliseconds since last on)
 			if (btns[b].pressed == 0 && millis() - btns[b].lastPressed > 10) {
 
-				if (editMode == SETUP) {
+				if (editMode == SETUP || editMode == SUBMENU) {
 					setupMenu.menuPicker(btns[b].name);
 				}
 				else {
@@ -594,6 +599,8 @@ void loop() {
 								break;
 							case SETUP:
 								break;
+							case SUBMENU:
+								break;
 							case LFO:
 								break;
 							case NOISE:
@@ -642,8 +649,11 @@ void loop() {
 void setCV(float setVolt) {
 	//  DAC buffer takes values of 0 to 4095 relating to 0v to 3.3v
 	//  setVolt will be in range 0 - voltsMax (5 unless trying to do pitch which might need negative)
-	float dacVolt = setVolt / 5 * 4095;
-	analogWrite(DACPIN, (int)dacVolt);
+	if (pitchMode) {
+		setVolt = quantiseVolts(setVolt);
+	}
+	//float dacVolt = setVolt / 5 * 4095;
+	analogWrite(DACPIN, (int)setVolt / 5 * 4095);
 }
 
 
@@ -654,7 +664,7 @@ boolean checkEditing() {
 
 void checkEditState() {
 	// check editing mode is valid for selected step type
-	if (editMode != SETUP) {
+	if (editMode != SETUP && editMode != SUBMENU) {
 		if (editStep == -1 && (editMode == STEPV || editMode == STEPR || editMode == STUTTER || !checkEditing())) {
 			editMode = PATTERN;
 		}
