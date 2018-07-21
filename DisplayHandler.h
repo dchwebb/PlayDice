@@ -407,7 +407,7 @@ String DisplayHandler::pitchFromVolt(float v) {
 	//uint8_t octave = round(v);
 	//uint8_t pitch = round(v * 12) % 12;
 	//Serial.print("v: "); Serial.print(v); Serial.print(" v x60: "); Serial.print(round(v * 60)); Serial.print(" p: "); Serial.println(pitch);
-	return pitches[round(v * 12) % 12] + (String)round(v);
+	return pitches[round(v * 12) % 12] + (String)int(v);
 }
 
 void DisplayHandler::init() {

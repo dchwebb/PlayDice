@@ -24,7 +24,7 @@ extern void checkEditState();
 extern void normalMode();
 extern void initCvSequence(int seqNum, seqInitType initType, uint16_t numSteps);
 extern void initGateSequence(int seqNum, seqInitType initType, uint16_t numSteps);
-
+extern void makeQuantiseArray();
 extern String const pitches[];
 const String *submenuArray;		// Stores a pointer to the array used to select submenu choices
 extern uint8_t submenuSize;			// number of items in array used to pick from submenu items
@@ -35,9 +35,11 @@ extern uint8_t submenuVal;				// currently selected submenu item
 static String const OffOnOpts[] = { "Off", "On"};
 String const pitches[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 String const scales[] = { "Chromatic", "Major", "Pentatonic" };
+static boolean scaleNotes[3][12] = { { 1,1,1,1,1,1,1,1,1,1,1,1 },{ 1,0,1,0,1,1,0,1,0,1,0,1 },{ 1,0,0,1,0,1,0,1,0,0,1,0 } };
 
 std::array<MenuItem, 10> menu{ { { 0, "< Back", 1 },{ 1, "Save Settings" },{ 2, "Load Settings" },{ 3, "LFO Mode" },{ 4, "Noise Mode" },{ 5, "Init All" },
  { 6, "Autosave", 0, OffOnOpts[0] },{ 7, "Pitch Mode", 0, OffOnOpts[0] },{ 8, "Quantise Root", 0, pitches[0] },{ 9, "Scale", 0, scales[0] } } };
+
 
 
 class SetupMenu {
@@ -272,10 +274,15 @@ boolean SetupMenu::loadSettings() {
 	autoSave = romRead(9);
 	setVal("Autosave", OffOnOpts[autoSave]);
 	pitchMode = romRead(10);
+	setVal("Pitch Mode", OffOnOpts[pitchMode]);
 	quantRoot = romRead(11);
-	setVal("Root", pitches[quantRoot]);
+	setVal("Quantise Root", pitches[quantRoot]);
 	quantScale = romRead(12);
+	setVal("Scale", scales[quantScale]);
 
+	if (pitchMode && quantScale > 0) {
+		makeQuantiseArray();
+	}
 
 	// deserialise cv struct
 	char cvToByte[sizeof(cv)];

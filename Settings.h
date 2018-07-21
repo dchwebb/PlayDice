@@ -77,8 +77,9 @@ struct MenuItem {
 	String val = "";
 };
 
-
-enum menuItems { EXIT, SAVE };
-
+struct QuantiseRange {
+	float to;		// the upper range of voltage included in this quantise step
+	float target;	// the voltage to shift the CV to if in this step
+};
 #endif
 

@@ -15,6 +15,7 @@ const boolean DEBUGRAND = 0;
 const boolean DEBUGFRAME = 0;
 const boolean DEBUGBTNS = 1;
 
+//	declare variables
 uint16_t tempoPot = 512, oldTempoPot = 0;		// Reading from tempo potentiometer for setting bpm
 uint16_t bpm = 120;				// beats per minute of sequence (assume sequence runs in eighth notes for now)
 uint16_t minBPM = 35;			// minimum BPM allowed for internal/external clock
@@ -56,12 +57,11 @@ uint8_t quantScale;				// if quantising in pitchmode sets scale
 elapsedMillis lfoCounter = 0;	// millisecond counter to check if next lfo calculation is due
 uint8_t submenuSize;			// number of items in array used to pick from submenu items
 uint8_t submenuVal;				// currently selected submenu item
-
-//	declare variables
 struct CvPatterns cv;
 struct GatePatterns gate;
 Btn btns[] = { { STEPDN, 22 },{ STEPUP, 12 },{ ENCODER, 15 },{ CHANNEL, 19 },{ ACTION, 20 },{ ACTIONCV, 21 } };		// numbers refer to Teensy digital pin numbers
-
+extern boolean scaleNotes[3][12];
+struct QuantiseRange quantiseRange[12];
 
 Encoder myEnc(ENCCLKPIN, ENCDATAPIN);
 ClockHandler clock(minBPM, maxBPM);
@@ -679,7 +679,8 @@ void normalMode() {
 	lastEditing = 0;
 	if (editStep == -1) {
 		editMode = PATTERN;
-	} else {
+	}
+	else {
 		editMode = STEPV;
 	}
 }
@@ -695,4 +696,55 @@ float getRandLimit(CvStep s, rndType getUpper) {
 
 float quantiseVolts(float v) {
 	return (float)round(v * 12) / 12;
+}
+
+void makeQuantiseArray() {
+	delay(1000);
+	Serial.println(quantScale);
+	//	makes an array of each scale note voltage with the upper limit of CV that will be quantised to that note
+	uint8_t lookupPos = 0;
+
+	for (uint8_t n = 0; n < 12; n++) {
+		if (scaleNotes[quantScale][n] == 1) {
+
+			quantiseRange[lookupPos].target = 0.083333 * n;
+			if (lookupPos > 0) {
+				// get upper range of previous scale note by averaging difference
+				quantiseRange[lookupPos - 1].to = quantiseRange[lookupPos - 1].target + ((quantiseRange[lookupPos].target - quantiseRange[lookupPos - 1].target) / 2);
+			}
+			lookupPos += 1;
+		}
+	}
+	quantiseRange[lookupPos - 1].to = quantiseRange[lookupPos - 1].target + ((quantiseRange[0].target + 1 - quantiseRange[lookupPos - 1].target) / 2);
+	quantiseRange[lookupPos].target = quantiseRange[0].target + 1 ;
+	quantiseRange[lookupPos].to = 1;
+
+
+
+	for (uint8_t n = 0; n < 12; n++) {
+		Serial.print(n); Serial.print(" target: "); Serial.print(quantiseRange[n].target); Serial.print(" to: "); Serial.println(quantiseRange[n].to);
+	}
+
+	Serial.println("Root adjust -");
+
+	if (quantRoot > 0) {
+		for (uint8_t n = 0; n < 12; n++) {
+			if (n <= lookupPos) {
+				quantiseRange[n].target += 0.083333 * quantRoot;
+				quantiseRange[n].target -= quantiseRange[n].target > 1 ? 1 : 0;
+				quantiseRange[n].to += 0.083333 * quantRoot;
+				quantiseRange[n].to -= quantiseRange[n].to > 1 ? 1 : 0;
+			}
+			else {
+				quantiseRange[n].target = 0;
+				quantiseRange[n].to = 0;
+
+			}
+		}
+	}
+
+	for (uint8_t n = 0; n < 12; n++) {
+		Serial.print(n); Serial.print(" target: "); Serial.print(quantiseRange[n].target); Serial.print(" to: "); Serial.println(quantiseRange[n].to);
+	}
+
 }
