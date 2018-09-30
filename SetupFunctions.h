@@ -29,16 +29,17 @@ extern String const pitches[];
 const String *submenuArray;		// Stores a pointer to the array used to select submenu choices
 extern uint8_t submenuSize;			// number of items in array used to pick from submenu items
 extern uint8_t submenuVal;				// currently selected submenu item
-
+extern actionOpts actionType;
 
 // action mode - what happens when the action button is pressed
 static String const OffOnOpts[] = { "Off", "On"};
 String const pitches[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 String const scales[] = { "Chromatic", "Major", "Pentatonic" };
+String const actions[] = { "Stutter", "Restart" };
 static boolean scaleNotes[3][12] = { { 1,1,1,1,1,1,1,1,1,1,1,1 },{ 1,0,1,0,1,1,0,1,0,1,0,1 },{ 1,0,0,1,0,1,0,1,0,0,1,0 } };
 
-std::array<MenuItem, 10> menu{ { { 0, "< Back", 1 },{ 1, "Save Settings" },{ 2, "Load Settings" },{ 3, "LFO Mode" },{ 4, "Noise Mode" },{ 5, "Init All" },
- { 6, "Autosave", 0, OffOnOpts[0] },{ 7, "Pitch Mode", 0, OffOnOpts[0] },{ 8, "Quantise Root", 0, pitches[0] },{ 9, "Scale", 0, scales[0] } } };
+std::array<MenuItem, 11> menu{ { { 0, "< Back", 1 },{ 1, "LFO Mode" },{ 2, "Noise Mode" },{ 3, "Action", 0, actions[0] }, { 4, "Autosave", 0, OffOnOpts[0] },
+{ 5, "Pitch Mode", 0, OffOnOpts[0] },{ 6, "Quantise Root", 0, pitches[0] },{ 7, "Scale", 0, scales[0] },{ 8, "Init All" },{ 9, "Save Settings" },{ 10, "Load Settings" } } };
 
 
 
@@ -112,6 +113,10 @@ void SetupMenu::menuPicker(int action) {
 						quantScale = submenuVal;
 						setVal(menu[m].name, scales[quantScale]);
 					}
+					if (menu[m].name == "Action") {
+						actionType = (actionOpts)submenuVal;
+						setVal(menu[m].name, actions[actionType]);
+					}
 				}
 			}
 			saveSettings();
@@ -180,8 +185,6 @@ void SetupMenu::menuPicker(int action) {
 						pitchMode = !pitchMode;
 						saveSettings();
 						menu[m].val = OffOnOpts[pitchMode];
-
-
 					}
 					else if (menu[m].name == "Quantise Root") {
 						submenuArray = pitches;
@@ -193,6 +196,12 @@ void SetupMenu::menuPicker(int action) {
 						submenuArray = scales;
 						submenuSize = 3;				// can't find way of checking this dynamically
 						submenuVal = quantScale;
+						editMode = SUBMENU;
+					}
+					else if (menu[m].name == "Action") {
+						submenuArray = actions;
+						submenuSize = 2;				// can't find way of checking this dynamically
+						submenuVal = actionType;
 						editMode = SUBMENU;
 					}
 				}
@@ -237,6 +246,8 @@ void SetupMenu::saveSettings() {
 	romWrite(11, quantRoot);
 	romWrite(12, quantScale);
 
+	romWrite(13, actionType);
+
 	// Serialise cv struct
 	char cvToByte[sizeof(cv)];
 	memcpy(cvToByte, &cv, sizeof(cv));
@@ -279,6 +290,8 @@ boolean SetupMenu::loadSettings() {
 	setVal("Quantise Root", pitches[quantRoot]);
 	quantScale = romRead(12);
 	setVal("Scale", scales[quantScale]);
+
+	actionType = (actionOpts)romRead(13);		// What the action button does
 
 	if (pitchMode && quantScale > 0) {
 		makeQuantiseArray();

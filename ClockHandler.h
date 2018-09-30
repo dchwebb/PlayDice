@@ -41,7 +41,7 @@ int ClockHandler::readClock() {
 
 	//clockInput = analogRead(CLOCKPIN);
 	//if (clockInput > 500) {
-	if (digitalRead(CLOCKPIN)) {
+	if (!digitalRead(CLOCKPIN)) {
 
 		// check if a new clock pulse has been detected - previous state low and no high clock in the last 20 milliseconds ( && millis() - lastClockHigh > 20 last test causing some false readings so maybe ditch)
 		if (clockHigh == 0 && millis() - clockHighTime > 20) {

@@ -26,7 +26,7 @@
 enum editType { STEPV, STEPR, STUTTER, PATTERN, STEPS, LOOPFIRST, LOOPLAST, SEQOPT, RANDALL, RANDVALS, SETUP, SUBMENU, LFO, NOISE};
 
 // action mode - what happens when the action button is pressed
-enum actionOpts { ACTRESTART, ACTSTUTTER };
+enum actionOpts { ACTSTUTTER, ACTRESTART };
 
 // define structures to store sequence data
 struct CvStep {

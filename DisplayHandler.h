@@ -124,17 +124,9 @@ void DisplayHandler::displaySetup() {
 	display.setCursor(85, 4);
 	display.print(bpm);
 
-
-	//display.drawFastVLine(80, 15, 64, WHITE);
-
-	//display.setCursor(85, 20);
-	//display.print("BPM");
-	//display.setCursor(85, 30);
-	//display.print(bpm);
-
 	if (clock.hasSignal()) {
-		display.setCursor(85, 50);
-		display.print("Clock");
+		display.setCursor(110, 4);
+		display.print("C");
 	}
 
 	if (editMode == SUBMENU) {

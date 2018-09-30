@@ -10,7 +10,7 @@
 #include <algorithm>
 
 const boolean DEBUGCLOCK = 0;
-const boolean DEBUGSTEPS = 0;
+const boolean DEBUGSTEPS = 1;
 const boolean DEBUGRAND = 0;
 const boolean DEBUGFRAME = 0;
 const boolean DEBUGBTNS = 1;
@@ -109,7 +109,7 @@ void setup() {
 
 	pinMode(LED, OUTPUT);
 	pinMode(GATEOUT, OUTPUT);
-	pinMode(CLOCKPIN, INPUT);
+	pinMode(CLOCKPIN, INPUT_PULLUP);
 
 	analogWriteResolution(12);    // set resolution of DAC pin for outputting variable voltages
 
@@ -130,6 +130,9 @@ void setup() {
 			initGateSequence(p, INITRAND);
 		}
 	}
+	cvSeqNo = cvLoopFirst;
+	gateSeqNo = gateLoopFirst;
+
 
 	/*
 	// test scale settings - values are voltages for a 2 octave major scale
@@ -173,7 +176,6 @@ void loop() {
 
 		tempoPot = analogRead(TEMPOPIN);
 		if (oldTempoPot - tempoPot > lfoJitter || tempoPot - oldTempoPot > lfoJitter || lfoSpeed < 0.0001) {
-			//lfoSpeed = (float)cbrt(pow((float)tempoPot, 2)) / 50000;
 			lfoSpeed = (float)(pow((float)tempoPot, (float)0.72)) / 50000;
 			if (lfoSpeed < 0.0001) {
 				lfoSpeed = 0.0001;
@@ -242,17 +244,18 @@ void loop() {
 	uint16_t timeStep = 1000 / (((float)bpm / 60) * 2);		// get length of step based on bpm
 	boolean newStep = (timeCounter >= timeStep && (!clock.hasSignal() || millis() - clock.clockHighTime < 10));
 
-	boolean newStutter = 0;
+	boolean newGateStutter = 0;
+	boolean newCVStutter = 0;
 	if (gateStutterStep > 0 && gateStutterStep < gate.seq[gateSeqNo].Steps[gateStep].stutter) {
 		if (timeCounter >= gateStutterStep * (timeStep / gate.seq[gateSeqNo].Steps[gateStep].stutter)) {
 			if (DEBUGSTEPS) { Serial.print("new stutter step: ");  Serial.print(gateStutterStep);  Serial.print(" ms "); Serial.println(millis()); }
-			newStutter = 1;
+			newGateStutter = 1;
 		}
 	}
 	if (cvStutterStep > 0 && cvStutterStep < cv.seq[cvSeqNo].Steps[cvStep].stutter) {
 		if (timeCounter >= cvStutterStep * (timeStep / cv.seq[cvSeqNo].Steps[cvStep].stutter)) {
 			//if (DEBUGSTEPS) { Serial.print("new stutter step: "); Serial.println(millis()); }
-			newStutter = 1;
+			newCVStutter = 1;
 		}
 	}
 
@@ -262,19 +265,21 @@ void loop() {
 		//	divide current step length by stutter count - for now actionStutterNo
 		if (stutterStep == 0) {
 			stutterStep = (timeCounter / (timeStep / actionStutterNo)) + 1;
-			//Serial.print("tc: "); Serial.print(timeCounter);  Serial.print(" ts ");  Serial.println(timeStep);
+			Serial.print("tc: "); Serial.print(timeCounter);  Serial.print(" ts ");  Serial.println(timeStep);
 		}
 		if (timeCounter >= stutterStep * (timeStep / actionStutterNo) && stutterStep < actionStutterNo) {
-			if (DEBUGSTEPS) { Serial.print("action stutter step: "); Serial.print(stutterStep);  Serial.print(" ms ");  Serial.println(millis()); }
-			newStutter = 1;
+			if (DEBUGSTEPS) { Serial.print("action stutter step: "); Serial.print(stutterStep);  Serial.print(" stutter no: "); Serial.print(actionStutterNo);  Serial.print("   ms ");  Serial.println(millis()); }
+			newGateStutter = 1;
+			newCVStutter = 1;
 		}
+		
 	}
 	else {
 		stutterStep = 0;
 	}
 
 
-	if (newStep || newStutter) {
+	if (newStep || newGateStutter || newCVStutter) {
 		//	increment sequence step and reinitialise stutter steps
 		if (newStep) {
 			cvStep += 1;
@@ -306,15 +311,14 @@ void loop() {
 		);
 
 		if (DEBUGSTEPS) {
-			Serial.print("guess next step: "); Serial.println(guessNextStep);
+			//Serial.print("guess next step: "); Serial.println(guessNextStep);
 		}
 
 		// CV sequence: calculate possible ranges of randomness to ensure we don't try and set a random value out of permitted range
-		if (newStep || cvStutterStep > 0) {
+		if (newStep || newCVStutter || actionStutter) {
 			if (cv.seq[cvSeqNo].Steps[cvStep].stutter > 0 || actionStutter) {
 				if (actionStutter) {
 					cvStutterStep = stutterStep;
-					stutterStep += 1;
 				}
 				cvStutterStep += 1;
 			}
@@ -329,15 +333,16 @@ void loop() {
 		}
 
 		// Gate sequence: calculate probability of gate being high or low. Eg rand_amt = 9 means there is a 90% chance that the value will be randomised
-		if (newStep || gateStutterStep > 0 || actionStutter) {
+		if (newStep || newGateStutter || actionStutter) {
 
 			if (gate.seq[gateSeqNo].Steps[gateStep].stutter > 0 || actionStutter) {
 				if (actionStutter) {
 					gateStutterStep = stutterStep;
-					stutterStep += 1;
+					
 				}
 				gateStutterStep += 1;
-				gateRandVal = (gateStutterStep % 2 > 0);
+				gateRandVal = ((gateStutterStep + (gate.seq[gateSeqNo].Steps[gateStep].on ? 0 : 1)) % 2 > 0);
+				//Serial.print("Step: "); Serial.print(gateStep); Serial.print(" grv: "); Serial.print(gateRandVal); Serial.print(" gss: "); Serial.println(gateStutterStep);
 			}
 			else {
 				if (gate.seq[gateSeqNo].Steps[gateStep].rand_amt) {
@@ -358,9 +363,13 @@ void loop() {
 			digitalWrite(GATEOUT, gateRandVal);
 		}
 
+		if (newStep || gateStutterStep > 0 || cvStutterStep > 0 || actionStutter) {
+			stutterStep += 1;
+		}
+
 		// flash LED and reset step info
 		if (newStep) {
-			digitalWrite(LED, cvStep % 2 == 0 ? HIGH : LOW);
+			//digitalWrite(LED, cvStep % 2 == 0 ? HIGH : LOW);
 			timeCounter = 0;
 			newStep = 0;
 		}
@@ -652,8 +661,10 @@ void setCV(float setVolt) {
 	if (pitchMode) {
 		setVolt = quantiseVolts(setVolt);
 	}
-	//float dacVolt = setVolt / 5 * 4095;
-	analogWrite(DACPIN, (int)setVolt / 5 * 4095);
+	float dacVolt = setVolt / 5 * 4095;
+	//Serial.print("CV: "); Serial.println((int)dacVolt);
+
+	analogWrite(DACPIN, (int)dacVolt);
 }
 
 

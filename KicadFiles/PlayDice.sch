@@ -104,28 +104,6 @@ F 3 "" H 6750 5150 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L SW_Push_Open_Dual_x2 Right1
-U 1 1 5A99E833
-P 8300 4750
-F 0 "Right1" H 8300 4850 50  0000 C CNN
-F 1 "Right Button" H 8300 4675 50  0000 C CNN
-F 2 "Buttons_Switches_THT:SW_MEC_5GTH9" H 8300 4950 50  0001 C CNN
-F 3 "" H 8300 4950 50  0001 C CNN
-	1    8300 4750
-	-1   0    0    -1  
-$EndComp
-$Comp
-L SW_Push_Open_Dual_x2 Left1
-U 1 1 5A99E8D7
-P 8300 5050
-F 0 "Left1" H 8300 5150 50  0000 C CNN
-F 1 "Left Button" H 8300 4975 50  0000 C CNN
-F 2 "Buttons_Switches_THT:SW_MEC_5GTH9" H 8300 5250 50  0001 C CNN
-F 3 "" H 8300 5250 50  0001 C CNN
-	1    8300 5050
-	-1   0    0    -1  
-$EndComp
-$Comp
 L +3.3V #PWR04
 U 1 1 5A9AB0CA
 P 9900 3650
@@ -240,7 +218,7 @@ L D D1
 U 1 1 5B3FC86C
 P 3700 2650
 F 0 "D1" H 3700 2750 50  0000 C CNN
-F 1 "1N5817" H 3700 2550 50  0000 C CNN
+F 1 "1N5817" H 3450 2700 50  0000 C CNN
 F 2 "Diodes_THT:D_DO-41_SOD81_P7.62mm_Horizontal" H 3700 2650 50  0001 C CNN
 F 3 "" H 3700 2650 50  0001 C CNN
 	1    3700 2650
@@ -357,17 +335,6 @@ F 3 "" H 3000 4450 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L SW_Push_Open_Dual_x2 Lane1
-U 1 1 5B422EFA
-P 8300 4450
-F 0 "Lane1" H 8300 4550 50  0000 C CNN
-F 1 "Lane Button" H 8300 4375 50  0000 C CNN
-F 2 "Buttons_Switches_THT:SW_MEC_5GTH9" H 8300 4650 50  0001 C CNN
-F 3 "" H 8300 4650 50  0001 C CNN
-	1    8300 4450
-	-1   0    0    -1  
-$EndComp
-$Comp
 L GND #PWR015
 U 1 1 5B423678
 P 8600 5050
@@ -399,17 +366,6 @@ F 2 "" H 9150 5050 50  0001 C CNN
 F 3 "" H 9150 5050 50  0001 C CNN
 	1    9150 5050
 	1    0    0    -1  
-$EndComp
-$Comp
-L SW_Push_Open_Dual_x2 Action1
-U 1 1 5B423AB9
-P 8300 4150
-F 0 "Action1" H 8300 4250 50  0000 C CNN
-F 1 "Action Button" H 8300 4100 50  0000 C CNN
-F 2 "Buttons_Switches_THT:SW_MEC_5GTH9" H 8300 4350 50  0001 C CNN
-F 3 "" H 8300 4350 50  0001 C CNN
-	1    8300 4150
-	-1   0    0    -1  
 $EndComp
 $Comp
 L GND #PWR017
@@ -651,7 +607,7 @@ L Eurorack_10_pin_power J2
 U 1 1 5B44E65B
 P 3350 2850
 F 0 "J2" H 3400 3150 50  0000 C CNN
-F 1 "Eurorack_10_pin_power" H 3400 2550 50  0000 C CNN
+F 1 "Eurorack_10_pin_power" H 3450 2550 50  0000 C CNN
 F 2 "PlayDice:Multicomp_MC9A12-1034_2x05x2.54mm_Straight" H 3350 2850 50  0001 C CNN
 F 3 "" H 3350 2850 50  0001 C CNN
 	1    3350 2850
@@ -993,6 +949,50 @@ F 1 "MMBT3904" H 3950 1200 50  0000 L CNN
 F 2 "TO_SOT_Packages_SMD:SOT-23" H 3950 1125 50  0001 L CIN
 F 3 "" H 3750 1200 50  0001 L CNN
 	1    3750 1200
+	1    0    0    -1  
+$EndComp
+$Comp
+L MEC_Push_Switch Action1
+U 1 1 5B7990CD
+P 8300 4150
+F 0 "Action1" H 8300 4250 50  0000 C CNN
+F 1 "Action Button" H 8300 4075 50  0000 C CNN
+F 2 "Buttons_Switches_THT:SW_MEC_5GTH9" H 8300 4350 50  0001 C CNN
+F 3 "" H 8300 4350 50  0001 C CNN
+	1    8300 4150
+	1    0    0    -1  
+$EndComp
+$Comp
+L MEC_Push_Switch Lane1
+U 1 1 5B79A837
+P 8300 4450
+F 0 "Lane1" H 8300 4550 50  0000 C CNN
+F 1 "Lane Button" H 8300 4375 50  0000 C CNN
+F 2 "Buttons_Switches_THT:SW_MEC_5GTH9" H 8300 4650 50  0001 C CNN
+F 3 "" H 8300 4650 50  0001 C CNN
+	1    8300 4450
+	1    0    0    -1  
+$EndComp
+$Comp
+L MEC_Push_Switch Right1
+U 1 1 5B79A9AB
+P 8300 4750
+F 0 "Right1" H 8300 4850 50  0000 C CNN
+F 1 "Right Button" H 8300 4675 50  0000 C CNN
+F 2 "Buttons_Switches_THT:SW_MEC_5GTH9" H 8300 4950 50  0001 C CNN
+F 3 "" H 8300 4950 50  0001 C CNN
+	1    8300 4750
+	1    0    0    -1  
+$EndComp
+$Comp
+L MEC_Push_Switch Left1
+U 1 1 5B79AB65
+P 8300 5050
+F 0 "Left1" H 8300 5150 50  0000 C CNN
+F 1 "Left Button" H 8300 4975 50  0000 C CNN
+F 2 "Buttons_Switches_THT:SW_MEC_5GTH9" H 8300 5250 50  0001 C CNN
+F 3 "" H 8300 5250 50  0001 C CNN
+	1    8300 5050
 	1    0    0    -1  
 $EndComp
 $EndSCHEMATC
