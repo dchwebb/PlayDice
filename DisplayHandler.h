@@ -36,6 +36,7 @@ extern const String pitches[];
 extern const String *submenuArray;
 extern uint8_t submenuSize;			// number of items in array used to pick from submenu items
 extern uint8_t submenuVal;				// currently selected submenu item
+extern String clockDiv;
 
 class DisplayHandler {
 public:
@@ -119,14 +120,14 @@ void DisplayHandler::displaySetup() {
 	display.setCursor(5, 4);
 	display.print("Setup");
 	display.drawFastHLine(0, 15, 128, WHITE);
-	display.setCursor(65, 4);
+	display.setCursor(60, 4);
 	display.print("BPM");
-	display.setCursor(85, 4);
+	display.setCursor(80, 4);
 	display.print(bpm);
 
 	if (clock.hasSignal()) {
-		display.setCursor(110, 4);
-		display.print("C");
+		display.setCursor(105, 4);
+		display.print("C" + clockDiv);
 	}
 
 	if (editMode == SUBMENU) {
@@ -220,9 +221,13 @@ void DisplayHandler::displayLanes() {
 	}
 	display.setTextSize(1);
 
-	// Draw a dot if we have a clock high signal
+	// Draw dots at the top right if we have a clock high signal and number of dots indicating whether multiplying or dividing
 	if (clock.hasSignal()) {
-		display.drawFastVLine(127, 0, 1, WHITE);
+		display.drawPixel(127, 0, WHITE);
+		if (clockDiv == "x2" || clockDiv == "x4") display.drawPixel(127, 2, WHITE);
+		if (clockDiv == "x4") display.drawPixel(127, 4, WHITE);
+		if (clockDiv == "/2" || clockDiv == "/4") display.drawPixel(125, 0, WHITE);
+		if (clockDiv == "/4") display.drawPixel(123, 0, WHITE);
 	}
 
 	//	Draw arrow beneath/above sequence number if selected for editing

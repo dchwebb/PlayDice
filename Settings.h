@@ -7,6 +7,9 @@
 	#include "WProgram.h"
 #endif
 
+#define DEBUGSTEP 0
+#define DEBUGCLOCK 0
+
 #define LED 13
 #define CLOCKPIN 14		// incoming voltage clock
 #define TEMPOPIN 9		// analog pin 9 - pot for controlling clock manually
@@ -26,7 +29,7 @@
 enum editType { STEPV, STEPR, STUTTER, PATTERN, STEPS, LOOPFIRST, LOOPLAST, SEQOPT, RANDALL, RANDVALS, SETUP, SUBMENU, LFO, NOISE};
 
 // action mode - what happens when the action button is pressed
-enum actionOpts { ACTSTUTTER, ACTRESTART };
+enum actionOpts { ACTSTUTTER, ACTRESTART, ACTPAUSE };
 
 // define structures to store sequence data
 struct CvStep {
@@ -68,7 +71,7 @@ struct Btn {
 	boolean longClick;
 	uint32_t lastPressed;
 };
-enum btnName { STEPUP, STEPDN, ENCODER, CHANNEL, ACTION, ENCUP, ENCDN, ACTIONCV };
+enum btnName { STEPUP, STEPDN, ENCODER, CHANNEL, ACTIONBTN, ENCUP, ENCDN, ACTIONCV };
 
 struct MenuItem {
 	int pos;

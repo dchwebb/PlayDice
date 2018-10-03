@@ -106,7 +106,7 @@ void Adafruit_SSD1306::begin(uint8_t vccstate, uint8_t i2caddr, bool reset) {
 	_vccstate = vccstate;
 	_i2caddr = i2caddr;
 	forceUpdate = 1;
-//	Serial.print("begin sid: "); Serial.println(sclk);  Serial.print(" h: "); Serial.println(SSD1306_LCDHEIGHT);
+	//	Serial.print("begin sid: "); Serial.println(sclk);  Serial.print(" h: "); Serial.println(SSD1306_LCDHEIGHT);
 
 	// set pin directions
 	if (sid != -1) {
@@ -451,7 +451,7 @@ boolean Adafruit_SSD1306::display(void) {
 			}
 		}
 		else {
-			Serial.println("full update");
+			//Serial.println("full update");
 			if (screenMode != 0x00) {
 				ssd1306_command(0x20);		// OLED_CMD_SET_MEMORY_ADDR_MODE
 				ssd1306_command(0x00);		// 0x00 = HORZ mode ; 0x01 = VERT ; 0x02 = PAGE

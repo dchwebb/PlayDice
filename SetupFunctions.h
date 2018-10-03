@@ -27,19 +27,20 @@ extern void initGateSequence(int seqNum, seqInitType initType, uint16_t numSteps
 extern void makeQuantiseArray();
 extern String const pitches[];
 const String *submenuArray;		// Stores a pointer to the array used to select submenu choices
-extern uint8_t submenuSize;			// number of items in array used to pick from submenu items
-extern uint8_t submenuVal;				// currently selected submenu item
-extern actionOpts actionType;
+extern uint8_t submenuSize;		// number of items in array used to pick from submenu items
+extern uint8_t submenuVal;		// currently selected submenu item
+extern actionOpts actionCVType;
+extern actionOpts actionBtnType;
 
 // action mode - what happens when the action button is pressed
 static String const OffOnOpts[] = { "Off", "On"};
 String const pitches[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 String const scales[] = { "Chromatic", "Major", "Pentatonic" };
-String const actions[] = { "Stutter", "Restart" };
+String const actions[] = { "Stutter", "Restart", "Pause" };
 static boolean scaleNotes[3][12] = { { 1,1,1,1,1,1,1,1,1,1,1,1 },{ 1,0,1,0,1,1,0,1,0,1,0,1 },{ 1,0,0,1,0,1,0,1,0,0,1,0 } };
 
-std::array<MenuItem, 11> menu{ { { 0, "< Back", 1 },{ 1, "LFO Mode" },{ 2, "Noise Mode" },{ 3, "Action", 0, actions[0] }, { 4, "Autosave", 0, OffOnOpts[0] },
-{ 5, "Pitch Mode", 0, OffOnOpts[0] },{ 6, "Quantise Root", 0, pitches[0] },{ 7, "Scale", 0, scales[0] },{ 8, "Init All" },{ 9, "Save Settings" },{ 10, "Load Settings" } } };
+std::array<MenuItem, 11> menu{ { { 0, "LFO Mode", 1 },{ 1, "Noise Mode" },{ 2, "Action CV", 0, actions[0] },{ 3, "Action Btn", 0, actions[0] },
+{ 4, "Pitch Mode", 0, OffOnOpts[0] },{ 5, "Quantise Root", 0, pitches[0] },{ 6, "Scale", 0, scales[0] },{ 7, "Autosave", 0, OffOnOpts[0] },{ 8, "Init All" },{ 9, "Save Settings" },{ 10, "Load Settings" } } };
 
 
 
@@ -113,9 +114,13 @@ void SetupMenu::menuPicker(int action) {
 						quantScale = submenuVal;
 						setVal(menu[m].name, scales[quantScale]);
 					}
-					if (menu[m].name == "Action") {
-						actionType = (actionOpts)submenuVal;
-						setVal(menu[m].name, actions[actionType]);
+					if (menu[m].name == "Action CV") {
+						actionCVType = (actionOpts)submenuVal;
+						setVal(menu[m].name, actions[actionCVType]);
+					}
+					if (menu[m].name == "Action Btn") {
+						actionBtnType = (actionOpts)submenuVal;
+						setVal(menu[m].name, actions[actionBtnType]);
 					}
 				}
 			}
@@ -198,10 +203,16 @@ void SetupMenu::menuPicker(int action) {
 						submenuVal = quantScale;
 						editMode = SUBMENU;
 					}
-					else if (menu[m].name == "Action") {
+					else if (menu[m].name == "Action CV") {
 						submenuArray = actions;
-						submenuSize = 2;				// can't find way of checking this dynamically
-						submenuVal = actionType;
+						submenuSize = 3;				// can't find way of checking this dynamically
+						submenuVal = actionCVType;
+						editMode = SUBMENU;
+					}
+					else if (menu[m].name == "Action Btn") {
+						submenuArray = actions;
+						submenuSize = 3;				// can't find way of checking this dynamically
+						submenuVal = actionBtnType;
 						editMode = SUBMENU;
 					}
 				}
@@ -246,7 +257,8 @@ void SetupMenu::saveSettings() {
 	romWrite(11, quantRoot);
 	romWrite(12, quantScale);
 
-	romWrite(13, actionType);
+	romWrite(13, actionCVType);
+	romWrite(14, actionBtnType);
 
 	// Serialise cv struct
 	char cvToByte[sizeof(cv)];
@@ -290,8 +302,10 @@ boolean SetupMenu::loadSettings() {
 	setVal("Quantise Root", pitches[quantRoot]);
 	quantScale = romRead(12);
 	setVal("Scale", scales[quantScale]);
-
-	actionType = (actionOpts)romRead(13);		// What the action button does
+	actionCVType = (actionOpts)romRead(13);
+	setVal("Action CV", actions[actionCVType]);
+	actionBtnType = (actionOpts)romRead(14);
+	setVal("Action Btn", actions[actionBtnType]);
 
 	if (pitchMode && quantScale > 0) {
 		makeQuantiseArray();
