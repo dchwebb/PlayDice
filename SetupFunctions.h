@@ -31,6 +31,8 @@ extern uint8_t submenuSize;		// number of items in array used to pick from subme
 extern uint8_t submenuVal;		// currently selected submenu item
 extern actionOpts actionCVType;
 extern actionOpts actionBtnType;
+extern boolean triggerMode;		// Gate sequencer outputs triggers rather than gates
+
 
 // action mode - what happens when the action button is pressed
 static String const OffOnOpts[] = { "Off", "On"};
@@ -39,8 +41,9 @@ String const scales[] = { "Chromatic", "Major", "Pentatonic" };
 String const actions[] = { "Stutter", "Restart", "Pause" };
 static boolean scaleNotes[3][12] = { { 1,1,1,1,1,1,1,1,1,1,1,1 },{ 1,0,1,0,1,1,0,1,0,1,0,1 },{ 1,0,0,1,0,1,0,1,0,0,1,0 } };
 
-std::array<MenuItem, 11> menu{ { { 0, "LFO Mode", 1 },{ 1, "Noise Mode" },{ 2, "Action CV", 0, actions[0] },{ 3, "Action Btn", 0, actions[0] },
-{ 4, "Pitch Mode", 0, OffOnOpts[0] },{ 5, "Quantise Root", 0, pitches[0] },{ 6, "Scale", 0, scales[0] },{ 7, "Autosave", 0, OffOnOpts[0] },{ 8, "Init All" },{ 9, "Save Settings" },{ 10, "Load Settings" } } };
+std::array<MenuItem, 12> menu{ { { 0, "LFO Mode", 1 },{ 1, "Noise Mode" },{ 2, "Action CV", 0, actions[0] },{ 3, "Action Btn", 0, actions[0] },
+{ 4, "Pitch Mode", 0, OffOnOpts[0] },{ 5, "Quantise Root", 0, pitches[0] },{ 6, "Scale", 0, scales[0] },{ 7, "Trigger Mode", 0, OffOnOpts[0] },
+{ 8, "Autosave", 0, OffOnOpts[0] },{ 9, "Init All" },{ 10, "Save Settings" },{ 11, "Load Settings" } } };
 
 
 
@@ -186,6 +189,11 @@ void SetupMenu::menuPicker(int action) {
 						saveSettings();
 						menu[m].val = OffOnOpts[autoSave];
 					}
+					else if (menu[m].name == "Trigger Mode") {
+						triggerMode = !triggerMode;
+						saveSettings();
+						menu[m].val = OffOnOpts[triggerMode];
+					}
 					else if (menu[m].name == "Pitch Mode") {
 						pitchMode = !pitchMode;
 						saveSettings();
@@ -260,6 +268,8 @@ void SetupMenu::saveSettings() {
 	romWrite(13, actionCVType);
 	romWrite(14, actionBtnType);
 
+	romWrite(15, triggerMode);
+
 	// Serialise cv struct
 	char cvToByte[sizeof(cv)];
 	memcpy(cvToByte, &cv, sizeof(cv));
@@ -306,6 +316,9 @@ boolean SetupMenu::loadSettings() {
 	setVal("Action CV", actions[actionCVType]);
 	actionBtnType = (actionOpts)romRead(14);
 	setVal("Action Btn", actions[actionBtnType]);
+	triggerMode = romRead(15);
+	setVal("Trigger Mode", OffOnOpts[triggerMode]);
+	
 
 	if (pitchMode && quantScale > 0) {
 		makeQuantiseArray();

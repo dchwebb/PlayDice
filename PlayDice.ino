@@ -10,7 +10,7 @@
 #include <algorithm>
 
 
-const boolean DEBUGRAND = 0;
+
 const boolean DEBUGFRAME = 0;
 const boolean DEBUGBTNS = 1;
 
@@ -23,13 +23,14 @@ uint16_t minBPM = 35;			// minimum BPM allowed for internal/external clock
 uint16_t maxBPM = 300;			// maximum BPM allowed for internal/external clock
 elapsedMillis timeCounter = 0;  // millisecond counter to check if next sequence step is due
 elapsedMillis debugCounter = 0;	// used to show debug data only every couple of ms
-unsigned long stepStart;		// time each new step starts
 uint32_t guessNextStep;			// guesstimate of when next step will fall - to avoid display firing at wrong time
 uint32_t lastEditing = 0;		// ms counter to show detailed edit parameters while editing or just after
 boolean saveRequired;			// set to true after editing a parameter needing a save (saves batched to avoid too many writes)
 boolean autoSave = 1;			// set to true if autosave enabled
 float cvRandVal = 0;			// Voltage of current step with randomisation applied
 boolean gateRandVal;			// 1 or 0 according to whether gate is high or low after randomisation
+boolean triggerMode = 0;		// Gate sequencer outputs triggers rather than gates
+uint32_t lastGate;				// Time gate was last set to high for use with trigger mode
 uint8_t cvStutterStep;			// if a step is in stutter mode store the count of the current stutters 
 uint8_t gateStutterStep;		// if a step is in stutter mode store the count of the current stutters 
 uint8_t cvSeqNo = 0;			// store the sequence number for CV patterns
@@ -261,7 +262,6 @@ void loop() {
 	//	check if the sequence counter is ready to advance to the next step. Also if using external clock wait for pulse
 	uint16_t timeStep = 1000 / (((float)bpm / 60) * 2);		// get length of step based on bpm
 
-
 	boolean newStep = (timeCounter >= timeStep && (!clock.hasSignal() || millis() - clock.clockHighTime < 10));
 
 	//	When the clock is slow relative to the speed of the tempo (usually at 4x clock speed) there won't be a clock tick for every beat
@@ -363,14 +363,20 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 				}
 				cvStutterStep += 1;
 			}
-			float randLower = getRandLimit(cv.seq[cvSeqNo].Steps[cvStep], LOWER);
-			float randUpper = getRandLimit(cv.seq[cvSeqNo].Steps[cvStep], UPPER);
-			cvRandVal = constrain(randLower + (getRand() * (randUpper - randLower)), 0, 5);
-			setCV(cvRandVal);
-			if (DEBUGRAND) {
+			if (cv.seq[cvSeqNo].Steps[cvStep].rand_amt) {
+				float randLower = getRandLimit(cv.seq[cvSeqNo].Steps[cvStep], LOWER);
+				float randUpper = getRandLimit(cv.seq[cvSeqNo].Steps[cvStep], UPPER);
+				cvRandVal = constrain(randLower + (getRand() * (randUpper - randLower)), 0, 5);
+#if DEBUGRAND
 				Serial.print("CV  S: "); Serial.print(cvStep);	Serial.print(" V: "); Serial.print(cv.seq[cvSeqNo].Steps[cvStep].volts); Serial.print(" Rnd: "); Serial.println(cv.seq[cvSeqNo].Steps[cvStep].rand_amt);
 				Serial.print("    Lwr: "); Serial.print(randLower); Serial.print(" Upr: "); Serial.print(randUpper); Serial.print(" Result: "); Serial.println(cvRandVal);
+#endif
+
 			}
+			else {
+				cvRandVal = cv.seq[cvSeqNo].Steps[cvStep].volts;
+			}
+			setCV(cvRandVal);
 		}
 
 		// Gate sequence: calculate probability of gate being high or low. Eg rand_amt = 9 means there is a 90% chance that the value will be randomised
@@ -383,18 +389,20 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 				}
 				gateStutterStep += 1;
 				gateRandVal = ((gateStutterStep + (gate.seq[gateSeqNo].Steps[gateStep].on ? 0 : 1)) % 2 > 0);
-				//Serial.print("Step: "); Serial.print(gateStep); Serial.print(" grv: "); Serial.print(gateRandVal); Serial.print(" gss: "); Serial.println(gateStutterStep);
+#if DEBUGSTEP
+				Serial.print("Step: "); Serial.print(gateStep); Serial.print(" grv: "); Serial.print(gateRandVal); Serial.print(" gss: "); Serial.println(gateStutterStep);
+#endif
 			}
 			else {
 				if (gate.seq[gateSeqNo].Steps[gateStep].rand_amt) {
-					uint8_t rndXTen = round(getRand() * 10);
+					uint8_t rndXTen = getRand() * 10;
 					float r = getRand();
-					gateRandVal = rndXTen < gate.seq[gateSeqNo].Steps[gateStep].rand_amt ? round(r) : gate.seq[gateSeqNo].Steps[gateStep].on;
+					gateRandVal = (gate.seq[gateSeqNo].Steps[gateStep].rand_amt > rndXTen && r < 0.5) ? !gate.seq[gateSeqNo].Steps[gateStep].on : gate.seq[gateSeqNo].Steps[gateStep].on;
 
-					if (DEBUGRAND) {
-						Serial.print("GT  on/off: "); Serial.print(gate.seq[gateSeqNo].Steps[gateStep].on); Serial.print(" prb: "); Serial.print(gate.seq[gateSeqNo].Steps[gateStep].rand_amt); Serial.print(" > rand: "); Serial.print(rndXTen);
-						Serial.print(" Gate: "); Serial.print(r); Serial.print(" changed: "); Serial.println(gate.seq[gateSeqNo].Steps[gateStep].on != gateRandVal);
-					}
+#if DEBUGRAND
+					Serial.print("GT on: "); Serial.print(gate.seq[gateSeqNo].Steps[gateStep].on); Serial.print(" prb: "); Serial.print(gate.seq[gateSeqNo].Steps[gateStep].rand_amt); Serial.print(" > rand: "); Serial.print(rndXTen);
+					Serial.print(" Gate: "); Serial.print(r); Serial.print(" changed: "); Serial.println(gate.seq[gateSeqNo].Steps[gateStep].on != gateRandVal);
+#endif
 				}
 				else {
 					gateRandVal = gate.seq[gateSeqNo].Steps[gateStep].on;
@@ -402,6 +410,13 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 
 			}
 			digitalWrite(GATEOUT, gateRandVal);
+			if (triggerMode && gateRandVal) {
+				lastGate = millis();
+#if DEBUGSTEP
+				Serial.println("Gate off - trigger mode"); 
+#endif
+			}
+
 		}
 
 		if (newStep || gateStutterStep > 0 || cvStutterStep > 0 || actionStutter) {
@@ -414,6 +429,10 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 			timeCounter = 0;
 			newStep = 0;
 		}
+	}
+	else if (triggerMode && gateRandVal && lastGate > 0 && lastGate < millis() - 10) {
+		digitalWrite(GATEOUT, 0);
+		lastGate = 0;
 	}
 
 	// Handle Encoder turn - alter parameter depending on edit mode
