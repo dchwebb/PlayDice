@@ -9,8 +9,9 @@
 
 #define DEBUGSTEP 0
 #define DEBUGCLOCK 0
-#define DEBUGRAND  1
-
+#define DEBUGRAND 0
+#define DEBUGQUANT 1
+#define DEBUGBTNS 0
 
 #define LED 13
 #define CLOCKPIN 14		// incoming voltage clock

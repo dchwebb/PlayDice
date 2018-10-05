@@ -12,7 +12,7 @@
 
 
 const boolean DEBUGFRAME = 0;
-const boolean DEBUGBTNS = 1;
+
 
 
 
@@ -66,6 +66,7 @@ struct GatePatterns gate;
 Btn btns[] = { { STEPDN, 22 },{ STEPUP, 12 },{ ENCODER, 15 },{ CHANNEL, 19 },{ ACTIONBTN, 20 },{ ACTIONCV, 21 } };		// numbers refer to Teensy digital pin numbers
 extern boolean scaleNotes[3][12];
 struct QuantiseRange quantiseRange[12];
+int8_t cvOffset;				// adds an offset to the CV > DAC conversion to account for component tolerance etc
 
 Encoder myEnc(ENCCLKPIN, ENCDATAPIN);
 ClockHandler clock(minBPM, maxBPM);
@@ -494,10 +495,27 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 
 					//	sequence select mode
 					if (editMode == PATTERN) {
-						uint8_t * pSeq = activeSeq == SEQCV ? &cvSeqNo : &gateSeqNo;
-						*pSeq += upOrDown ? 1 : -1;
-						*pSeq = *pSeq == 255 ? 7 : (*pSeq > 7 ? 0 : *pSeq);		// because we are using an unsigned int -1 goes to 255
-						if (DEBUGBTNS) { Serial.print("cv pat: ");  Serial.print(cvSeqNo); Serial.print(" gate: ");  Serial.print(gateSeqNo); }
+						//uint8_t * pSeq = activeSeq == SEQCV ? &cvSeqNo : &gateSeqNo;
+						//*pSeq += upOrDown ? 1 : -1;
+						//*pSeq = *pSeq == 255 ? 7 : (*pSeq > 7 ? 0 : *pSeq);		// because we are using an unsigned int -1 goes to 255
+
+						if (activeSeq == SEQCV) {
+							cvSeqNo += upOrDown ? (cvSeqNo < 7 ? 1 : 0) : cvSeqNo > 0 ? -1 : 0;
+							if (cvLoopFirst == cvLoopLast) {
+								cvLoopFirst = cvLoopLast = cvSeqNo;
+							}
+						}
+						else {
+							gateSeqNo += upOrDown ? (gateSeqNo < 7 ? 1 : 0) : gateSeqNo > 0 ? -1 : 0;
+							if (gateLoopFirst == gateLoopLast) {
+								gateLoopFirst = gateSeqNo;
+								gateLoopLast = gateSeqNo;
+							}
+						}
+
+#if DEBUGBTNS
+						Serial.print("cv pat: "); Serial.print(cvSeqNo); Serial.print(" gate: "); Serial.print(gateSeqNo); 
+#endif
 					}
 
 					if (editMode == LOOPFIRST) {
@@ -506,9 +524,10 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 						*loopF += upOrDown ? 1 : -1;
 						*loopF = *loopF == 255 ? 7 : (*loopF > 7 ? 0 : *loopF);		// because we are using an unsigned int -1 goes to 255
 						*loopL = constrain(*loopL, *loopF, 7);
-						if (DEBUGBTNS) { Serial.print("First loop: ");  Serial.print(*loopF); }
+#if DEBUGBTNS
+						Serial.print("First loop: ");  Serial.print(*loopF);
+#endif
 					}
-
 
 					if (editMode == LOOPLAST) {
 						uint8_t * loopF = activeSeq == SEQCV ? &cvLoopFirst : &gateLoopFirst;
@@ -516,7 +535,9 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 						*loopL += upOrDown ? 1 : -1;
 						*loopL = *loopL == 255 ? *loopF : (*loopL > 7 ? 7 : *loopL);		// because we are using an unsigned int -1 goes to 255
 						*loopL = constrain(*loopL, *loopF, 7);
-						if (DEBUGBTNS) { Serial.print("Last loop: ");  Serial.print(*loopL); }
+#if DEBUGBTNS
+						Serial.print("Last loop: ");  Serial.print(*loopL);
+#endif
 					}
 
 					//	Steps select mode
@@ -547,7 +568,9 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 				lastEditing = millis();
 				saveRequired = 1;
 			}
-			if (DEBUGBTNS) { Serial.print("  Encoder: ");  Serial.println(newEncPos); }
+#if DEBUGBTNS
+			Serial.print("  Encoder: ");  Serial.println(newEncPos);
+#endif
 		}
 
 		oldEncPos = newEncPos;
@@ -566,7 +589,9 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 			if (btns[b].released && btns[b].name == CHANNEL) {
 				btns[b].released = 0;
 				if (millis() - btns[b].lastPressed < 500) {
-					if (DEBUGBTNS) Serial.println("Btn: Channel");
+#if DEBUGBTNS
+					Serial.println("Btn: Channel");
+#endif
 					if (editMode == SETUP) {
 						normalMode();
 					}
@@ -580,7 +605,9 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 			if (btns[b].released && (btns[b].name == ACTIONBTN || btns[b].name == ACTIONCV)) {
 				btns[b].released = 0;
 				actionStutter = 0;
-				if (DEBUGBTNS) Serial.println("Stutter off");
+#if DEBUGBTNS
+				Serial.println("Stutter off");
+#endif
 			}
 		}
 		else {
@@ -602,15 +629,17 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 						// check editing mode is valid for selected step type
 						checkEditState();
 
-						if (DEBUGBTNS) {
+#if DEBUGBTNS
 							if (btns[STEPUP].pressed) Serial.println("Btn: Step up");
 							if (btns[STEPDN].pressed) Serial.println("Btn: Step dn");
-						}
+#endif
 					}
 
 					if (btns[b].name == ACTIONBTN || btns[b].name == ACTIONCV) {
 						actionOpts actionType = btns[b].name == ACTIONBTN ? actionBtnType : actionCVType;
-						if (DEBUGBTNS) { Serial.print("Btn: Action; type: "); Serial.println(actionType); }
+#if DEBUGBTNS
+						Serial.print("Btn: Action; type: "); Serial.println(actionType);
+#endif
 
 						switch (actionType) {
 						case ACTSTUTTER:
@@ -624,7 +653,6 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 							pause = !pause;
 							break;
 						}
-
 					}
 
 
@@ -685,7 +713,9 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 						else {
 							editMode = editStep == -1 ? STEPS : STEPV;
 						}
-						if (DEBUGBTNS) Serial.println("Btn: Encoder");
+#if DEBUGBTNS
+						Serial.println("Btn: Encoder");
+#endif
 						lastEditing = millis();
 					}
 
@@ -700,9 +730,10 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 	if (btns[CHANNEL].pressed && millis() - btns[CHANNEL].lastPressed > 500 && editMode != SETUP) {
 		btns[CHANNEL].longClick = 1;
 		editMode = SETUP;
-		if (DEBUGBTNS) {
-			Serial.println("Setup");
-		}
+#if DEBUGBTNS
+		Serial.println("Setup");
+#endif
+		
 	}
 
 	// about the longest display update time is 2 milliseconds so don't update display if less than 5 milliseconds until the next expected event (step change or clock tick)
@@ -727,8 +758,10 @@ void setCV(float setVolt) {
 	if (pitchMode) {
 		setVolt = quantiseVolts(setVolt);
 	}
-	float dacVolt = setVolt / 5 * 4095;
+	float dacVolt = (setVolt / 5 * 4095) + cvOffset;
 	//Serial.print("CV: "); Serial.println((int)dacVolt);
+	//dacVolt += 122;
+	//Serial.print("CV + 100: "); Serial.println((int)dacVolt);
 
 	analogWrite(DACPIN, (int)dacVolt);
 }
@@ -772,56 +805,97 @@ float getRandLimit(CvStep s, rndType getUpper) {
 }
 
 float quantiseVolts(float v) {
-	return (float)round(v * 12) / 12;
+
+	float v1 = v - int(v);
+
+#if DEBUGQUANT
+	Serial.print("v: "); Serial.print(v, 3);
+#endif
+
+	for (int8_t x = 0; x < 12; x++) {
+		//Serial.print("v1: "); Serial.print(v1); Serial.print(" q to "); Serial.print(quantiseRange[x].to);
+		if (v1 <= quantiseRange[x].to) {
+			v = int(v) + quantiseRange[x].target;
+			break;
+		}
+	}
+#if DEBUGQUANT
+	Serial.print("  v out: "); Serial.print(v, 3);Serial.print("  "); Serial.println(dispHandler.pitchFromVolt(v));
+#endif
+
+	return v;
+	//return (float)round(v * 12) / 12;
 }
 
 void makeQuantiseArray() {
-	delay(1000);
-	Serial.println(quantScale);
 	//	makes an array of each scale note voltage with the upper limit of CV that will be quantised to that note
+#if DEBUGQUANT
+	delay(1000);
+#endif
+
+/*	
+0.000	C		0.000	C		0.167	D		0.083	C#
+0.083	C#		0.167	D		0.333	E		0.167	D
+0.167	D		0.333	E		0.500	F#		0.333	E
+0.250	D#		0.417	F		0.583	G		0.500	F#
+0.333	E		0.583	G		0.750	A		0.583	G
+0.417	F		0.750	A		0.917	B		0.750	A
+0.500	F#		0.917	B		1.083	C#		0.917	B
+0.583	G		1.000	C		1.167	D		1.167	C#
+0.667	G#
+0.750	A
+0.833	A#
+0.917	B
+1.000	C
+
+*/
 	uint8_t lookupPos = 0;
+	uint8_t s = 0;
+	quantRoot = 6;
+	float targCurr, targPrev, toPrev;
+	for (uint8_t n = 0; n < 25; n++) {
+		if (scaleNotes[quantScale][n % 12] == 1) {
 
-	for (uint8_t n = 0; n < 12; n++) {
-		if (scaleNotes[quantScale][n] == 1) {
-
-			quantiseRange[lookupPos].target = 0.083333 * n;
+			targCurr = 0.083333 * (n + quantRoot);
 			if (lookupPos > 0) {
 				// get upper range of previous scale note by averaging difference
-				quantiseRange[lookupPos - 1].to = quantiseRange[lookupPos - 1].target + ((quantiseRange[lookupPos].target - quantiseRange[lookupPos - 1].target) / 2);
+				toPrev = targPrev + ((targCurr - targPrev) / 2);
 			}
+#if DEBUGQUANT
+			//Serial.print(n); Serial.print(" toPrev: "); Serial.print(toPrev); Serial.print("  targCurr: "); Serial.print(targCurr); Serial.print(" targPrev: "); Serial.println(targPrev);
+#endif
+			// once we have got beyond the first octave rewrite sequence so that it is ordered but starting from 0 volts
+			if (toPrev > 1) {
+				quantiseRange[s].target = targPrev - (float)1;
+				quantiseRange[s].to = toPrev - (float)1;
+				s += 1;
+			}
+			targPrev = targCurr;
 			lookupPos += 1;
 		}
+	}
+
+#if DEBUGQUANT
+	Serial.print("Quantise scale: "); Serial.println(scales[quantScale]);
+	Serial.print("Root adjust: "); Serial.println(pitches[quantRoot]);
+	for (uint8_t n = 0; n < 12; n++) {
+		Serial.print(n); Serial.print(" target: "); Serial.print(quantiseRange[n].target, 3); Serial.print("  to: "); Serial.println(quantiseRange[n].to, 3);
+	}
+#endif
+
+	/*	for (int8_t n = 0; n < 12; n++) {
+	if (scaleNotes[quantScale][n] == 1) {
+
+	quantiseRange[lookupPos].target = 0.083333 * n;
+	if (lookupPos > 0) {
+	// get upper range of previous scale note by averaging difference
+	quantiseRange[lookupPos - 1].to = quantiseRange[lookupPos - 1].target + ((quantiseRange[lookupPos].target - quantiseRange[lookupPos - 1].target) / 2);
+	}
+	lookupPos += 1;
+	}
 	}
 	quantiseRange[lookupPos - 1].to = quantiseRange[lookupPos - 1].target + ((quantiseRange[0].target + 1 - quantiseRange[lookupPos - 1].target) / 2);
 	quantiseRange[lookupPos].target = quantiseRange[0].target + 1 ;
 	quantiseRange[lookupPos].to = 1;
-
-
-
-	for (uint8_t n = 0; n < 12; n++) {
-		Serial.print(n); Serial.print(" target: "); Serial.print(quantiseRange[n].target); Serial.print(" to: "); Serial.println(quantiseRange[n].to);
-	}
-
-	Serial.println("Root adjust -");
-
-	if (quantRoot > 0) {
-		for (uint8_t n = 0; n < 12; n++) {
-			if (n <= lookupPos) {
-				quantiseRange[n].target += 0.083333 * quantRoot;
-				quantiseRange[n].target -= quantiseRange[n].target > 1 ? 1 : 0;
-				quantiseRange[n].to += 0.083333 * quantRoot;
-				quantiseRange[n].to -= quantiseRange[n].to > 1 ? 1 : 0;
-			}
-			else {
-				quantiseRange[n].target = 0;
-				quantiseRange[n].to = 0;
-
-			}
-		}
-	}
-
-	for (uint8_t n = 0; n < 12; n++) {
-		Serial.print(n); Serial.print(" target: "); Serial.print(quantiseRange[n].target); Serial.print(" to: "); Serial.println(quantiseRange[n].to);
-	}
-
+	*/
 }

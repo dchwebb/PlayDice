@@ -32,7 +32,7 @@ extern uint8_t submenuVal;		// currently selected submenu item
 extern actionOpts actionCVType;
 extern actionOpts actionBtnType;
 extern boolean triggerMode;		// Gate sequencer outputs triggers rather than gates
-
+extern int8_t cvOffset;
 
 // action mode - what happens when the action button is pressed
 static String const OffOnOpts[] = { "Off", "On"};
@@ -41,9 +41,9 @@ String const scales[] = { "Chromatic", "Major", "Pentatonic" };
 String const actions[] = { "Stutter", "Restart", "Pause" };
 static boolean scaleNotes[3][12] = { { 1,1,1,1,1,1,1,1,1,1,1,1 },{ 1,0,1,0,1,1,0,1,0,1,0,1 },{ 1,0,0,1,0,1,0,1,0,0,1,0 } };
 
-std::array<MenuItem, 12> menu{ { { 0, "LFO Mode", 1 },{ 1, "Noise Mode" },{ 2, "Action CV", 0, actions[0] },{ 3, "Action Btn", 0, actions[0] },
+std::array<MenuItem, 13> menu{ { { 0, "LFO Mode", 1 },{ 1, "Noise Mode" },{ 2, "Action CV", 0, actions[0] },{ 3, "Action Btn", 0, actions[0] },
 { 4, "Pitch Mode", 0, OffOnOpts[0] },{ 5, "Quantise Root", 0, pitches[0] },{ 6, "Scale", 0, scales[0] },{ 7, "Trigger Mode", 0, OffOnOpts[0] },
-{ 8, "Autosave", 0, OffOnOpts[0] },{ 9, "Init All" },{ 10, "Save Settings" },{ 11, "Load Settings" } } };
+{ 8, "Autosave", 0, OffOnOpts[0] },{ 9, "Init All" },{ 10, "Save Settings" },{ 11, "Load Settings" },{ 12, "CV Calibration", 0, "0" } } };
 
 
 
@@ -53,13 +53,13 @@ public:
 	uint8_t size();
 	String menuName(uint8_t n);
 	boolean menuSelected(uint8_t n);
+	String menuCurrent();		// name of currently selected menu item
 	String menuVal(uint8_t n);
 	void setVal(String name, String val);
 	void saveSettings();
 	boolean loadSettings();		// returns true if settings found in EEPROM
+	boolean numberEdit;			// true if submenu function is editing number
 private:
-	long clockSignal;
-	int32_t frameStart;
 	void romWrite(uint16_t pos, uint8_t val);
 	uint8_t romRead(uint16_t pos);
 
@@ -90,21 +90,36 @@ void SetupMenu::setVal(String name, String val) {
 	}
 }
 
+String SetupMenu::menuCurrent() {
+	// Sets the value of a menu item by name
+	for (uint8_t m = 0; m < menu.size(); m++) {
+		if (menu[m].selected) {
+			return menu[m].name;
+		}
+	}
+}
 // carry out the screen refresh building the various UI elements
 void SetupMenu::menuPicker(int action) {
 
 	if (editMode == SUBMENU) {
-		if (action == ENCUP && submenuVal < submenuSize - 1) {
-			submenuVal += 1;
+		if (menuCurrent() == "CV Calibration") {
+			if (action == ENCUP) {
+				cvOffset += 1;
+			}
+			else if (action == ENCDN) {
+				cvOffset -= 1;
+			}
+			setVal("CV Calibration", cvOffset);
 		}
-
-		if (action == ENCDN && submenuVal > 0) {
+		else if (action == ENCUP && submenuVal < submenuSize - 1) {
+			submenuVal += 1;
+		} 
+		else if (action == ENCDN && submenuVal > 0) {
 			submenuVal -= 1;
 		}
-
 		if (action == ENCODER) {
-			Serial.println("Exit submenu");
 			editMode = SETUP;
+			numberEdit = 0;
 			
 			// store value back after submenu editing
 			for (uint8_t m = 0; m < menu.size(); m++) {
@@ -223,6 +238,11 @@ void SetupMenu::menuPicker(int action) {
 						submenuVal = actionBtnType;
 						editMode = SUBMENU;
 					}
+					else if (menu[m].name == "CV Calibration") {
+						editMode = SUBMENU;
+						numberEdit = 1;
+						setVal("CV Calibration", cvOffset);
+					}
 				}
 			}
 		}
@@ -269,6 +289,8 @@ void SetupMenu::saveSettings() {
 	romWrite(14, actionBtnType);
 
 	romWrite(15, triggerMode);
+
+	romWrite(16, cvOffset);
 
 	// Serialise cv struct
 	char cvToByte[sizeof(cv)];
@@ -318,6 +340,8 @@ boolean SetupMenu::loadSettings() {
 	setVal("Action Btn", actions[actionBtnType]);
 	triggerMode = romRead(15);
 	setVal("Trigger Mode", OffOnOpts[triggerMode]);
+	cvOffset = romRead(16);
+	setVal("CV Calibration", cvOffset);
 	
 
 	if (pitchMode && quantScale > 0) {

@@ -130,7 +130,7 @@ void DisplayHandler::displaySetup() {
 		display.print("C" + clockDiv);
 	}
 
-	if (editMode == SUBMENU) {
+	if (editMode == SUBMENU && !setupMenu.numberEdit) {
 
 		uint8_t menuStart = round(submenuVal / 4) * 4;
 		for (uint8_t m = 0; m < 4; m++) {
@@ -174,17 +174,17 @@ void DisplayHandler::displaySetup() {
 			if (menuStart + m < setupMenu.size()) {
 				display.setCursor(5, 20 + (m * 10));
 				String v = setupMenu.menuVal(menuStart + m);
-				String s = setupMenu.menuName(menuStart + m) + (String)(v != "" ? ":" + v : "");
+				String s = setupMenu.menuName(menuStart + m) + (String)(v != "" ? (String)(setupMenu.numberEdit ? "> " : ":") + v : "");
 				display.print(s);
 
 				//Serial.print("name: "); Serial.print(s); Serial.print(" len: "); Serial.print(s.length());
-				if (setupMenu.menuSelected(menuStart + m)) {
-					display.fillRect(3, 19 + (m * 10), s.length() * 7, 10, INVERSE);
+				if (setupMenu.menuSelected(menuStart + m) && !setupMenu.numberEdit) {
+					display.fillRect(3, 19 + (m * 10), s.length() * 6.7, 10, INVERSE);
 				}
 			}
 		}
 		// draw up/down arrows if there are pages of menu items before/after current page
-		if (menuSelected > 3) {
+		if (menuSelected > 3 && !setupMenu.numberEdit) {
 			display.setCursor(120, 20);
 			display.write(24);		// writes an arrow from the Adafruit library
 		}
