@@ -1,4 +1,4 @@
-#include <Wire.h>
+//#include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Encoder.h>
 #include "Adafruit_SSD1306.h"
@@ -6,14 +6,8 @@
 #include "DisplayHandler.h"
 #include "SetupFunctions.h"
 #include "Settings.h"
-#include <array>
-#include <algorithm>
-
-
-
-const boolean DEBUGFRAME = 0;
-
-
+//#include <array>
+//#include <algorithm>
 
 
 //	declare variables
@@ -61,54 +55,21 @@ elapsedMillis lfoCounter = 0;	// millisecond counter to check if next lfo calcul
 uint8_t submenuSize;			// number of items in array used to pick from submenu items
 uint8_t submenuVal;				// currently selected submenu item
 String clockDiv = "";			// shows whether a clock divider is in place in the setup menu (clocked input with multiplier/divider provided by tempo pot)
-struct CvPatterns cv;
-struct GatePatterns gate;
-Btn btns[] = { { STEPDN, 22 },{ STEPUP, 12 },{ ENCODER, 15 },{ CHANNEL, 19 },{ ACTIONBTN, 20 },{ ACTIONCV, 21 } };		// numbers refer to Teensy digital pin numbers
-extern boolean scaleNotes[3][12];
-struct QuantiseRange quantiseRange[12];
 int8_t cvOffset;				// adds an offset to the CV > DAC conversion to account for component tolerance etc
-
-Encoder myEnc(ENCCLKPIN, ENCDATAPIN);
-ClockHandler clock(minBPM, maxBPM);
-DisplayHandler dispHandler;
-SetupMenu setupMenu;
 actionOpts actionCVType = ACTSTUTTER;
 actionOpts actionBtnType = ACTPAUSE;
 
-void initCvSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
-	numSteps = (numSteps == 0 || numSteps > 8 ? 8 : numSteps);
-	cv.seq[seqNum].steps = numSteps;
-	for (int s = 0; s < 8; s++) {
-		cv.seq[seqNum].Steps[s].volts = (initType == INITBLANK ? 2.5 : getRand() * 5);
-		cv.seq[seqNum].Steps[s].rand_amt = (initType == INITRAND ? round((getRand() * 10)) : 0);
-		//	Don't want too many stutters so apply two random checks to see if apply stutter, and if so how much - minimum number of stutters is 2
-		if (initType == INITRAND && getRand() > 0.8) {
-			cv.seq[seqNum].Steps[s].stutter = round((getRand() * 6) + 1);
-		}
-		else {
-			cv.seq[seqNum].Steps[s].stutter = 0;
-		}
-	}
-}
-void initGateSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
-	numSteps = (numSteps == 0 || numSteps > 8 ? 8 : numSteps);
-	gate.seq[seqNum].steps = numSteps;
-	for (int s = 0; s < 8; s++) {
-		gate.seq[seqNum].Steps[s].on = (initType == INITBLANK ? 0 : round(getRand()));
-		gate.seq[seqNum].Steps[s].rand_amt = (initType == INITRAND ? round((getRand() * 10)) : 0);
-		//	Don't want too many stutters so apply two random checks to see if apply stutter, and if so how much
-		if (initType == INITRAND && getRand() > 0.8) {
-			gate.seq[seqNum].Steps[s].stutter = round((getRand() * 6) + 1);
-		}
-		else {
-			gate.seq[seqNum].Steps[s].stutter = 0;
-		}
-	}
-}
+struct CvPatterns cv;
+struct GatePatterns gate;
+struct QuantiseRange quantiseRange[12];
 
-double getRand() {
-	return (double)rand() / (double)RAND_MAX;
-}
+Btn btns[] = { { STEPDN, 22 },{ STEPUP, 12 },{ ENCODER, 15 },{ CHANNEL, 19 },{ ACTIONBTN, 20 },{ ACTIONCV, 21 } };		// numbers refer to Teensy digital pin numbers
+
+ClockHandler clock(minBPM, maxBPM);
+DisplayHandler dispHandler;
+SetupMenu setupMenu;
+Encoder myEnc(ENCCLKPIN, ENCDATAPIN);
+
 
 
 void setup() {
@@ -131,36 +92,15 @@ void setup() {
 		//  Set up CV and Gate patterns
 		srand(micros());
 		for (int p = 0; p < 8; p++) {
-			initCvSequence(p, INITRAND);
+			initCvSequence(p, INITRAND, 8);
 			srand(micros());
-			initGateSequence(p, INITRAND);
+			initGateSequence(p, INITRAND, 8);
 		}
 	}
 	cvSeqNo = cvLoopFirst;
 	gateSeqNo = gateLoopFirst;
 
-
-	/*
-	// test scale settings - values are voltages for a 2 octave major scale
-	cv.seq[0].Steps[0].volts = 2;
-	cv.seq[0].Steps[1].volts = 2.167;
-	cv.seq[0].Steps[2].volts = 2.333;
-	cv.seq[0].Steps[3].volts = 2.417;
-	cv.seq[0].Steps[4].volts = 2.583;
-	cv.seq[0].Steps[5].volts = 2.75;
-	cv.seq[0].Steps[6].volts = 2.917;
-	cv.seq[0].Steps[7].volts = 3;
-	cv.seq[1].Steps[0].volts = 3;
-	cv.seq[1].Steps[1].volts = 3.167;
-	cv.seq[1].Steps[2].volts = 3.333;
-	cv.seq[1].Steps[3].volts = 3.417;
-	cv.seq[1].Steps[4].volts = 3.583;
-	cv.seq[1].Steps[5].volts = 3.75;
-	cv.seq[1].Steps[6].volts = 3.917;
-	cv.seq[1].Steps[7].volts = 4;
-	*/
-
-	// initialiase encoder
+	// initialise encoder
 	oldEncPos = round(myEnc.read() / 4);
 
 	if (editMode == LFO || editMode == NOISE) {
@@ -307,7 +247,6 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 			newGateStutter = 1;
 			newCVStutter = 1;
 		}
-		
 	}
 	else {
 		stutterStep = 0;
@@ -436,6 +375,7 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 		lastGate = 0;
 	}
 
+
 	// Handle Encoder turn - alter parameter depending on edit mode
 	long newEncPos = myEnc.read();
 	if (newEncPos != oldEncPos) {
@@ -458,21 +398,28 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 						CvStep *s = &cv.seq[cvSeqNo].Steps[editStep];
 						if (editMode == STEPV) {
 							if (pitchMode) {
-								s->volts = quantiseVolts(s->volts + (upOrDown ? 0.08333 : -0.08333));
+								float n = s->volts + (upOrDown ? 0.08333 : -0.08333);
+								Serial.print("n: "); Serial.print(n, 3); Serial.print("qn: "); Serial.print(quantiseVolts(n), 3); Serial.print(" sn: "); Serial.println(quantiseVolts(s->volts), 3);
+								while (round(quantiseVolts(n) * 100) == round(quantiseVolts(s->volts) * 100)) {
+									n += (upOrDown ? 0.08333 : -0.08333);
+									Serial.print("aq: "); Serial.println(n, 3);
+								}
+								s->volts = quantiseVolts(n);
+								//s->volts = (s->volts + (upOrDown ? 0.08333 : -0.08333));//quantiseVolts
 							}
 							else {
 								s->volts += upOrDown ? 0.10 : -0.10;
 							}
 							s->volts = constrain(s->volts, 0, 5);
-							Serial.print("volts: "); Serial.print(s->volts);
+							Serial.print("Edit volts: "); Serial.println(s->volts);
 						}
 						if (editMode == STEPR && (upOrDown || s->rand_amt > 0) && (!upOrDown || s->rand_amt < 10)) {
 							s->rand_amt += upOrDown ? 1 : -1;
-							Serial.print("rand: "); Serial.print(s->rand_amt);
+							Serial.print("Edit rand: "); Serial.println(s->rand_amt);
 						}
 						if (editMode == STUTTER && (upOrDown || s->stutter > 0) && (!upOrDown || s->stutter < 8)) {
 							s->stutter += upOrDown ? (s->stutter == 0 ? 2 : 1) : (s->stutter == 2 ? -2 : -1);
-							Serial.print("stutter: "); Serial.print(s->stutter);
+							Serial.print("Edit stutter: "); Serial.println(s->stutter);
 						}
 					}
 					else {
@@ -495,12 +442,8 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 
 					//	sequence select mode
 					if (editMode == PATTERN) {
-						//uint8_t * pSeq = activeSeq == SEQCV ? &cvSeqNo : &gateSeqNo;
-						//*pSeq += upOrDown ? 1 : -1;
-						//*pSeq = *pSeq == 255 ? 7 : (*pSeq > 7 ? 0 : *pSeq);		// because we are using an unsigned int -1 goes to 255
-
 						if (activeSeq == SEQCV) {
-							cvSeqNo += upOrDown ? (cvSeqNo < 7 ? 1 : 0) : cvSeqNo > 0 ? -1 : 0;
+							cvSeqNo += upOrDown ? (cvSeqNo < 7 ? 1 : 0) : cvSeqNo > 0 ? -1 : 0;// because we are using an unsigned int -1 goes to 255
 							if (cvLoopFirst == cvLoopLast) {
 								cvLoopFirst = cvLoopLast = cvSeqNo;
 							}
@@ -512,7 +455,6 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 								gateLoopLast = gateSeqNo;
 							}
 						}
-
 #if DEBUGBTNS
 						Serial.print("cv pat: "); Serial.print(cvSeqNo); Serial.print(" gate: "); Serial.print(gateSeqNo); 
 #endif
@@ -572,7 +514,6 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 			Serial.print("  Encoder: ");  Serial.println(newEncPos);
 #endif
 		}
-
 		oldEncPos = newEncPos;
 	}
 
@@ -651,6 +592,10 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 							break;
 						case ACTPAUSE:
 							pause = !pause;
+							// ensure gate is off when pausing
+							if (pause) {
+								digitalWrite(GATEOUT, 0);
+							}
 							break;
 						}
 					}
@@ -752,6 +697,48 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 }
 
 
+
+
+
+
+
+
+double getRand() {
+	return (double)rand() / (double)RAND_MAX;
+}
+
+void initCvSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
+	numSteps = (numSteps == 0 || numSteps > 8 ? 8 : numSteps);
+	cv.seq[seqNum].steps = numSteps;
+	for (int s = 0; s < 8; s++) {
+		cv.seq[seqNum].Steps[s].volts = (initType == INITBLANK ? 2.5 : getRand() * 5);
+		cv.seq[seqNum].Steps[s].rand_amt = (initType == INITRAND ? round((getRand() * 10)) : 0);
+		//	Don't want too many stutters so apply two random checks to see if apply stutter, and if so how much - minimum number of stutters is 2
+		if (initType == INITRAND && getRand() > 0.8) {
+			cv.seq[seqNum].Steps[s].stutter = round((getRand() * 6) + 1);
+		}
+		else {
+			cv.seq[seqNum].Steps[s].stutter = 0;
+		}
+	}
+}
+
+void initGateSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
+	numSteps = (numSteps == 0 || numSteps > 8 ? 8 : numSteps);
+	gate.seq[seqNum].steps = numSteps;
+	for (int s = 0; s < 8; s++) {
+		gate.seq[seqNum].Steps[s].on = (initType == INITBLANK ? 0 : round(getRand()));
+		gate.seq[seqNum].Steps[s].rand_amt = (initType == INITRAND ? round((getRand() * 10)) : 0);
+		//	Don't want too many stutters so apply two random checks to see if apply stutter, and if so how much
+		if (initType == INITRAND && getRand() > 0.8) {
+			gate.seq[seqNum].Steps[s].stutter = round((getRand() * 6) + 1);
+		}
+		else {
+			gate.seq[seqNum].Steps[s].stutter = 0;
+		}
+	}
+}
+
 void setCV(float setVolt) {
 	//  DAC buffer takes values of 0 to 4095 relating to 0v to 3.3v
 	//  setVolt will be in range 0 - voltsMax (5 unless trying to do pitch which might need negative)
@@ -764,6 +751,26 @@ void setCV(float setVolt) {
 	//Serial.print("CV + 100: "); Serial.println((int)dacVolt);
 
 	analogWrite(DACPIN, (int)dacVolt);
+}
+
+
+
+float quantiseVolts(float v) {
+	float v1 = v - int(v);
+#if DEBUGQUANT
+	Serial.print("v in: "); Serial.print(v, 3);
+#endif
+	for (int8_t x = 0; x < 12; x++) {
+		if (v1 <= quantiseRange[x].to) {
+			v = int(v) + quantiseRange[x].target;
+			break;
+		}
+	}
+#if DEBUGQUANT
+	Serial.print("  v out: "); Serial.print(v, 3);Serial.print("  "); Serial.println(dispHandler.pitchFromVolt(v));
+#endif
+
+	return v;
 }
 
 
@@ -784,6 +791,7 @@ void checkEditState() {
 	}
 }
 
+
 void normalMode() {
 	// return to normal step or pattern editing after LFO mode, setup menu etc
 	lastEditing = 0;
@@ -795,6 +803,7 @@ void normalMode() {
 	}
 }
 
+
 float getRandLimit(CvStep s, rndType getUpper) {
 	if (getUpper == UPPER) {
 		return s.volts + ((double)s.rand_amt / 2);
@@ -804,54 +813,31 @@ float getRandLimit(CvStep s, rndType getUpper) {
 	}
 }
 
-float quantiseVolts(float v) {
-
-	float v1 = v - int(v);
-
-#if DEBUGQUANT
-	Serial.print("v: "); Serial.print(v, 3);
-#endif
-
-	for (int8_t x = 0; x < 12; x++) {
-		//Serial.print("v1: "); Serial.print(v1); Serial.print(" q to "); Serial.print(quantiseRange[x].to);
-		if (v1 <= quantiseRange[x].to) {
-			v = int(v) + quantiseRange[x].target;
-			break;
-		}
-	}
-#if DEBUGQUANT
-	Serial.print("  v out: "); Serial.print(v, 3);Serial.print("  "); Serial.println(dispHandler.pitchFromVolt(v));
-#endif
-
-	return v;
-	//return (float)round(v * 12) / 12;
-}
-
 void makeQuantiseArray() {
 	//	makes an array of each scale note voltage with the upper limit of CV that will be quantised to that note
 #if DEBUGQUANT
-	delay(1000);
+	delay(500);
 #endif
 
-/*	
-0.000	C		0.000	C		0.167	D		0.083	C#
-0.083	C#		0.167	D		0.333	E		0.167	D
-0.167	D		0.333	E		0.500	F#		0.333	E
-0.250	D#		0.417	F		0.583	G		0.500	F#
-0.333	E		0.583	G		0.750	A		0.583	G
-0.417	F		0.750	A		0.917	B		0.750	A
-0.500	F#		0.917	B		1.083	C#		0.917	B
-0.583	G		1.000	C		1.167	D		1.167	C#
-0.667	G#
-0.750	A
-0.833	A#
-0.917	B
-1.000	C
+	/*
+	0.000	C		0.000	C		0.167	D		0.083	C#
+	0.083	C#		0.167	D		0.333	E		0.167	D
+	0.167	D		0.333	E		0.500	F#		0.333	E
+	0.250	D#		0.417	F		0.583	G		0.500	F#
+	0.333	E		0.583	G		0.750	A		0.583	G
+	0.417	F		0.750	A		0.917	B		0.750	A
+	0.500	F#		0.917	B		1.083	C#		0.917	B
+	0.583	G		1.000	C		1.167	D		1.167	C#
+	0.667	G#
+	0.750	A
+	0.833	A#
+	0.917	B
+	1.000	C
 
-*/
+	*/
 	uint8_t lookupPos = 0;
 	uint8_t s = 0;
-	quantRoot = 6;
+	//quantRoot = 0;
 	float targCurr, targPrev, toPrev;
 	for (uint8_t n = 0; n < 25; n++) {
 		if (scaleNotes[quantScale][n % 12] == 1) {
@@ -883,19 +869,4 @@ void makeQuantiseArray() {
 	}
 #endif
 
-	/*	for (int8_t n = 0; n < 12; n++) {
-	if (scaleNotes[quantScale][n] == 1) {
-
-	quantiseRange[lookupPos].target = 0.083333 * n;
-	if (lookupPos > 0) {
-	// get upper range of previous scale note by averaging difference
-	quantiseRange[lookupPos - 1].to = quantiseRange[lookupPos - 1].target + ((quantiseRange[lookupPos].target - quantiseRange[lookupPos - 1].target) / 2);
-	}
-	lookupPos += 1;
-	}
-	}
-	quantiseRange[lookupPos - 1].to = quantiseRange[lookupPos - 1].target + ((quantiseRange[0].target + 1 - quantiseRange[lookupPos - 1].target) / 2);
-	quantiseRange[lookupPos].target = quantiseRange[0].target + 1 ;
-	quantiseRange[lookupPos].to = 1;
-	*/
 }

@@ -1,3 +1,4 @@
+#pragma once
 #ifndef _SETTINGS_h
 #define _SETTINGS_h
 
@@ -10,8 +11,9 @@
 #define DEBUGSTEP 0
 #define DEBUGCLOCK 0
 #define DEBUGRAND 0
-#define DEBUGQUANT 1
+#define DEBUGQUANT 0
 #define DEBUGBTNS 0
+#define DEBUGFRAME 0
 
 #define LED 13
 #define CLOCKPIN 14		// incoming voltage clock
@@ -29,10 +31,17 @@
 #define OLED_CLK   5		// D0 on OLED
 
 // edit modes: STEPV voltage; STEPR random level; STUTTER stutter count, PATTERN pattern number, STEPS in pattern, RANDALL - randomise all settings, RANDVALS - randomise just values
-enum editType { STEPV, STEPR, STUTTER, PATTERN, STEPS, LOOPFIRST, LOOPLAST, SEQOPT, RANDALL, RANDVALS, SETUP, SUBMENU, LFO, NOISE};
+enum editType { STEPV, STEPR, STUTTER, PATTERN, STEPS, LOOPFIRST, LOOPLAST, SEQOPT, RANDALL, RANDVALS, SETUP, SUBMENU, LFO, NOISE };
 
 // action mode - what happens when the action button is pressed
 enum actionOpts { ACTSTUTTER, ACTRESTART, ACTPAUSE };
+
+static String const OffOnOpts[] = { "Off", "On" };
+String const pitches[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+String const scales[] = { "Chromatic", "Major", "Pentatonic" };
+String const actions[] = { "Stutter", "Restart", "Pause" };
+static boolean scaleNotes[3][12] = { { 1,1,1,1,1,1,1,1,1,1,1,1 },{ 1,0,1,0,1,1,0,1,0,1,0,1 },{ 1,0,0,1,0,1,0,1,0,0,1,0 } };
+
 
 // define structures to store sequence data
 struct CvStep {
@@ -61,7 +70,7 @@ struct GatePatterns {
 	struct GateSequence seq[8];
 };
 enum seqMode { LOOPCURRENT, LOOPALL };
-enum seqInitType { INITRAND, INITVALS, INITBLANK};
+enum seqInitType { INITRAND, INITVALS, INITBLANK };
 enum seqType { SEQCV, SEQGATE };
 enum rndType { UPPER, LOWER };
 
@@ -87,5 +96,8 @@ struct QuantiseRange {
 	float to;		// the upper range of voltage included in this quantise step
 	float target;	// the voltage to shift the CV to if in this step
 };
+
+
+
 #endif
 

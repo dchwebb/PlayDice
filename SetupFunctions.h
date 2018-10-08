@@ -1,7 +1,7 @@
 #pragma once
 #include <Adafruit_GFX.h>
 #include "Adafruit_SSD1306.h"
-#include "Settings.h"
+//#include "Settings.h"
 #include "DisplayHandler.h"
 #include "WString.h"
 #include <array>
@@ -26,7 +26,6 @@ extern void initCvSequence(int seqNum, seqInitType initType, uint16_t numSteps);
 extern void initGateSequence(int seqNum, seqInitType initType, uint16_t numSteps);
 extern void makeQuantiseArray();
 extern String const pitches[];
-const String *submenuArray;		// Stores a pointer to the array used to select submenu choices
 extern uint8_t submenuSize;		// number of items in array used to pick from submenu items
 extern uint8_t submenuVal;		// currently selected submenu item
 extern actionOpts actionCVType;
@@ -35,16 +34,12 @@ extern boolean triggerMode;		// Gate sequencer outputs triggers rather than gate
 extern int8_t cvOffset;
 
 // action mode - what happens when the action button is pressed
-static String const OffOnOpts[] = { "Off", "On"};
-String const pitches[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
-String const scales[] = { "Chromatic", "Major", "Pentatonic" };
-String const actions[] = { "Stutter", "Restart", "Pause" };
-static boolean scaleNotes[3][12] = { { 1,1,1,1,1,1,1,1,1,1,1,1 },{ 1,0,1,0,1,1,0,1,0,1,0,1 },{ 1,0,0,1,0,1,0,1,0,0,1,0 } };
+
+const String *submenuArray;		// Stores a pointer to the array used to select submenu choices
 
 std::array<MenuItem, 13> menu{ { { 0, "LFO Mode", 1 },{ 1, "Noise Mode" },{ 2, "Action CV", 0, actions[0] },{ 3, "Action Btn", 0, actions[0] },
 { 4, "Pitch Mode", 0, OffOnOpts[0] },{ 5, "Quantise Root", 0, pitches[0] },{ 6, "Scale", 0, scales[0] },{ 7, "Trigger Mode", 0, OffOnOpts[0] },
 { 8, "Autosave", 0, OffOnOpts[0] },{ 9, "Init All" },{ 10, "Save Settings" },{ 11, "Load Settings" },{ 12, "CV Calibration", 0, "0" } } };
-
 
 
 class SetupMenu {
@@ -97,7 +92,9 @@ String SetupMenu::menuCurrent() {
 			return menu[m].name;
 		}
 	}
+	return "";
 }
+
 // carry out the screen refresh building the various UI elements
 void SetupMenu::menuPicker(int action) {
 
@@ -127,6 +124,7 @@ void SetupMenu::menuPicker(int action) {
 					if (menu[m].name == "Quantise Root") {
 						quantRoot = submenuVal;
 						setVal(menu[m].name, pitches[quantRoot]);
+						makeQuantiseArray();
 					}
 					if (menu[m].name == "Scale") {
 						quantScale = submenuVal;

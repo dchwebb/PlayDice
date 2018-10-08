@@ -6,8 +6,6 @@
 #include "WString.h"
 #include <array>
 
-extern const boolean DEBUGFRAME;
-
 extern uint16_t bpm;
 extern int8_t cvStep;
 extern int8_t gateStep;
@@ -38,6 +36,9 @@ extern uint8_t submenuSize;			// number of items in array used to pick from subm
 extern uint8_t submenuVal;				// currently selected submenu item
 extern String clockDiv;
 
+extern ClockHandler clock;
+extern SetupMenu setupMenu;
+
 class DisplayHandler {
 public:
 	DisplayHandler();
@@ -64,9 +65,9 @@ DisplayHandler::DisplayHandler() :
 
 // carry out the screen refresh building the various UI elements
 void DisplayHandler::updateDisplay() {
-	if (DEBUGFRAME) {
-		frameStart = micros();
-	}
+#if DEBUGFRAME
+	frameStart = micros();
+#endif
 	display.clearDisplay();
 	display.setTextSize(1);
 
@@ -80,10 +81,11 @@ void DisplayHandler::updateDisplay() {
 		displayLanes();
 	}
 
-	if (display.display(editMode == LFO || editMode == NOISE) && DEBUGFRAME) {
-		int32_t m = micros();
-		Serial.print("Frame start: "); Serial.print(frameStart); Serial.print(" end: "); Serial.print(m); Serial.print(" time: "); Serial.println(m - frameStart);
-	}
+	display.display(editMode == LFO || editMode == NOISE);
+#if DEBUGFRAME
+	int32_t m = micros();
+	Serial.print("Frame start: "); Serial.print(frameStart); Serial.print(" end: "); Serial.print(m); Serial.print(" time: "); Serial.println(m - frameStart);
+#endif
 }
 
 //	Display static lfo screen
