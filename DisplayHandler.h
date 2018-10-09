@@ -46,8 +46,8 @@ public:
 	void init();
 	int cvVertPos(float voltage);
 	void drawDottedVLine(int16_t x, int16_t y, int16_t h, uint16_t color);
-	void drawParam(String s, String v, uint8_t x, uint8_t y, uint8_t w, boolean selected, uint8_t highlightX, uint8_t highlightW);
-	void drawParam(String s, String v, uint8_t x, uint8_t y, uint8_t w, boolean selected);
+	void drawParam(String s, String v, int8_t x, uint8_t y, uint8_t w, boolean selected, uint8_t highlightX, uint8_t highlightW);
+	void drawParam(String s, String v, int8_t x, uint8_t y, uint8_t w, boolean selected);
 	void displayLanes();
 	void displayLFO();
 	void displaySetup();
@@ -335,7 +335,10 @@ void DisplayHandler::displayLanes() {
 		}
 	}
 
+
+
 	//	if currently or recently editing show values in bottom area of screen
+	// drawParam(string, value, x, y, w, selected, highlightX, highlightW)
 	if (editing) {
 		if (activeSeq == SEQGATE) {
 			if (editMode == STEPR || editMode == STEPV || editMode == STUTTER) {
@@ -344,27 +347,42 @@ void DisplayHandler::displayLanes() {
 				drawParam("Stutter", String(gate.seq[gateSeqNo].Steps[editStep].stutter), 81, 0, 47, editMode == STUTTER);
 			}
 
-			if (editMode == LOOPFIRST || editMode == LOOPLAST || editMode == STEPS || editMode == SEQOPT || editMode == RANDALL || editMode == RANDVALS) {
-				drawParam("Steps", String(gate.seq[gateSeqNo].steps), 0, 0, 36, editMode == STEPS);
-				drawParam("Loop", String(gateLoopFirst + 1) + String(" - ") + String(gateLoopLast + 1), 38, 0, 38, editMode == LOOPFIRST || editMode == LOOPLAST, editMode == LOOPFIRST ? 40 : 64, 9);
-				drawParam("Rand", String(editMode == RANDALL ? "All >" : (editMode == RANDVALS ? "Vals > " : "None >")), 80, 0, 42, editMode == SEQOPT || editMode == RANDALL || editMode == RANDVALS, 82, 38);
+			if (editMode == SEQMODE || editMode == STEPS || editMode == LOOPFIRST || editMode == LOOPLAST || editMode == SEQOPT) {
+				drawParam(gate.seq[gateSeqNo].mode ? "Trigger" : "Gate", String("Steps ") + String(gate.seq[gateSeqNo].steps), -2, 0, 49, editMode == STEPS, 36, 9);
+				drawParam("Loop", String(gateLoopFirst + 1) + String(" - ") + String(gateLoopLast + 1), 49, 0, 38, editMode == LOOPFIRST || editMode == LOOPLAST, editMode == LOOPFIRST ? 51 : 75, 9);
+				drawParam("Rand", initSeq[submenuVal], 88, 0, 40, editMode == SEQOPT, 90, 36);
+				if (editMode == SEQMODE) {
+					display.fillRect(0, 1, 45, 11, INVERSE);
+				}
+				//drawParam("Steps", String(gate.seq[gateSeqNo].steps), 0, 0, 36, editMode == STEPS);
+				//drawParam("Loop", String(gateLoopFirst + 1) + String(" - ") + String(gateLoopLast + 1), 38, 0, 38, editMode == LOOPFIRST || editMode == LOOPLAST, editMode == LOOPFIRST ? 40 : 64, 9);
+				//drawParam("Rand", initSeq[submenuVal], 80, 0, 42, editMode == SEQOPT, 82, 38);
+
+
 			}
 		}
 
 		if (activeSeq == SEQCV) {
 			if (editMode == STEPR || editMode == STEPV || editMode == STUTTER) {
 				String v = pitchMode ? pitchFromVolt(cv.seq[cvSeqNo].Steps[editStep].volts) : String(cv.seq[cvSeqNo].Steps[editStep].volts);
-				drawParam(pitchMode ? "Pitch" : "Volts", v, 0, 40, 36, editMode == STEPV);
-				drawParam("Random", String(cv.seq[cvSeqNo].Steps[editStep].rand_amt), 38, 40, 44, editMode == STEPR);
-				drawParam("Stutter", String(cv.seq[cvSeqNo].Steps[editStep].stutter), 81, 40, 47, editMode == STUTTER);
+				drawParam(pitchMode ? "Pitch" : "Volts", v, 0, 39, 36, editMode == STEPV);
+				drawParam("Random", String(cv.seq[cvSeqNo].Steps[editStep].rand_amt), 38, 39, 44, editMode == STEPR);
+				drawParam("Stutter", String(cv.seq[cvSeqNo].Steps[editStep].stutter), 81, 39, 47, editMode == STUTTER);
 			}
 
-			if (editMode == LOOPFIRST || editMode == LOOPLAST || editMode == STEPS || editMode == SEQOPT || editMode == RANDALL || editMode == RANDVALS) {
-				drawParam("Steps", String(cv.seq[cvSeqNo].steps), 0, 40, 36, editMode == STEPS);
-				drawParam("Loop", String(cvLoopFirst + 1) + String(" - ") + String(cvLoopLast + 1), 38, 40, 38, editMode == LOOPFIRST || editMode == LOOPLAST, editMode == LOOPFIRST ? 40 : 64, 9);
-				drawParam("Rand", String(editMode == RANDALL ? "All >" : (editMode == RANDVALS ? "Vals > " : "None >")), 80, 40, 42, editMode == SEQOPT || editMode == RANDALL || editMode == RANDVALS, 82, 38);
-				//display.setCursor(120, 50);
-				//display.write(25);		// writes an arrow from the Adafruit library
+			if (editMode == SEQMODE || editMode == STEPS || editMode == LOOPFIRST || editMode == LOOPLAST || editMode == SEQOPT) {
+				drawParam(cv.seq[cvSeqNo].mode == CV ? "CV" : "Pitch", String("Steps ") + String(cv.seq[cvSeqNo].steps), -2, 39, 49, editMode == STEPS, 36, 9);
+				drawParam("Loop", String(cvLoopFirst + 1) + String(" - ") + String(cvLoopLast + 1), 49, 39, 38, editMode == LOOPFIRST || editMode == LOOPLAST, editMode == LOOPFIRST ? 51 : 75, 9);
+				drawParam("Rand", initSeq[submenuVal], 88, 39, 40, editMode == SEQOPT, 90, 36);
+				if (editMode == SEQMODE) {
+					display.fillRect(0, 40, 45, 11, INVERSE);
+				}
+			}
+
+			if (editMode == SEQROOT || editMode == SEQSCALE) {
+				drawParam("Root", pitches[cv.seq[cvSeqNo].root], 0, 39, 49, editMode == SEQROOT);
+				drawParam("Scale", scales[cv.seq[cvSeqNo].scale], 50, 39, 70, editMode == SEQSCALE);
+
 			}
 
 		}
@@ -383,29 +401,27 @@ void DisplayHandler::drawDottedVLine(int16_t x, int16_t y, int16_t h, uint16_t c
 	}
 }
 
-void DisplayHandler::drawParam(String s, String v, uint8_t x, uint8_t y, uint8_t w, boolean selected) {
+void DisplayHandler::drawParam(String s, String v, int8_t x, uint8_t y, uint8_t w, boolean selected) {
 	drawParam(s, v, x, y, w, selected, 0, 0);
 }
 
-void DisplayHandler::drawParam(String s, String v, uint8_t x, uint8_t y, uint8_t w, boolean selected, uint8_t highlightX, uint8_t highlightW) {
+void DisplayHandler::drawParam(String s, String v, int8_t x, uint8_t y, uint8_t w, boolean selected, uint8_t highlightX, uint8_t highlightW) {
 	display.setCursor(x + 4, y + 3);
 	display.println(s);
-	display.setCursor(x + 4, y + 13);
+	display.setCursor(x + 4, y + 14);
 	display.println(v);
 	if (selected) {
-		display.drawRect(x, y, w, 24, INVERSE);
 		if (highlightX > 0) {
-			Serial.println(highlightX);
-			display.fillRect(highlightX, y + 12, highlightW, 10, INVERSE);
+			display.fillRect(highlightX, y + 12, highlightW, 11, INVERSE);
+		}
+		else {
+			display.drawRect(x, y, w, 25, INVERSE);
 		}
 	}
 }
 
 //	returns the nearest note name from a given 1v/oct voltage
 String DisplayHandler::pitchFromVolt(float v) {
-	//uint8_t octave = round(v);
-	//uint8_t pitch = round(v * 12) % 12;
-	//Serial.print("v: "); Serial.print(v); Serial.print(" v x60: "); Serial.print(round(v * 60)); Serial.print(" p: "); Serial.println(pitch);
 	return pitches[round(v * 12) % 12] + (String)int(v);
 }
 

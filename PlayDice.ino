@@ -51,6 +51,8 @@ uint8_t lfoJitter;				// because the analog pot is more sensitive at the bottom 
 boolean pitchMode;				// set to true if CV lane displays and quantises to pitches
 uint8_t quantRoot;				// if quantising in pitchmode sets root note
 uint8_t quantScale;				// if quantising in pitchmode sets scale
+uint8_t oldRoot = -1;				// previous root note to check if we need to rebuild quantise table
+uint8_t oldScale;				// previous scale
 elapsedMillis lfoCounter = 0;	// millisecond counter to check if next lfo calculation is due
 uint8_t submenuSize;			// number of items in array used to pick from submenu items
 uint8_t submenuVal;				// currently selected submenu item
@@ -99,6 +101,7 @@ void setup() {
 	}
 	cvSeqNo = cvLoopFirst;
 	gateSeqNo = gateLoopFirst;
+	makeQuantiseArray();
 
 	// initialise encoder
 	oldEncPos = round(myEnc.read() / 4);
@@ -126,7 +129,7 @@ void loop() {
 			if (lfoSpeed < 0.0001) {
 				lfoSpeed = 0.0001;
 			}
-			Serial.println(lfoSpeed * 1000);//lfoSpeed * 1000
+
 			oldTempoPot = tempoPot;
 			if (tempoPot < 6) {
 				lfoJitter = 1;
@@ -261,6 +264,7 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 				cvStep = 0;
 				if (!checkEditing() && cvLoopLast > cvLoopFirst) {
 					cvSeqNo = cvSeqNo++ >= cvLoopLast ? cvLoopFirst : cvSeqNo;
+					makeQuantiseArray();
 #if DEBUGSTEP
 					Serial.print("CV seq: "); Serial.println(cvSeqNo);
 #endif
@@ -382,7 +386,6 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 
 		// check editing mode is valid for selected step type
 		checkEditState();
-		//Serial.print("edit state: ");  Serial.println(editMode);
 		if (round(newEncPos / 4) != round(oldEncPos / 4)) {
 			boolean upOrDown = newEncPos > oldEncPos;
 
@@ -447,6 +450,7 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 							if (cvLoopFirst == cvLoopLast) {
 								cvLoopFirst = cvLoopLast = cvSeqNo;
 							}
+							makeQuantiseArray();
 						}
 						else {
 							gateSeqNo += upOrDown ? (gateSeqNo < 7 ? 1 : 0) : gateSeqNo > 0 ? -1 : 0;
@@ -482,6 +486,16 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 #endif
 					}
 
+					//	Sequence mode (gate/trigger or CV/Pitch)
+					if (editMode == SEQMODE) {
+						if (activeSeq == SEQCV) {
+							cv.seq[cvSeqNo].mode = !cv.seq[cvSeqNo].mode;
+						}
+						else {
+							gate.seq[gateSeqNo].mode = !gate.seq[gateSeqNo].mode;
+						}
+					}
+
 					//	Steps select mode
 					if (editMode == STEPS) {
 						if (activeSeq == SEQCV) {
@@ -492,18 +506,18 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 					}
 
 					//	Initialise/randomise sequence mode - simple menu system
-					if ((editMode == SEQOPT && upOrDown) || (editMode == RANDVALS && !upOrDown)) {
-						editMode = RANDALL;
+					if (editMode == SEQOPT) {
+						submenuVal += (upOrDown ? 1 : -1);
+						submenuVal = submenuVal == 255 ? initSeqSize - 1 : submenuVal > initSeqSize - 1 ? 0 : submenuVal;
+					} 
+
+					//	Pitch mode root and scale selection
+					if (editMode == SEQROOT) {
+						cv.seq[cvSeqNo].root = AddNLoop(cv.seq[cvSeqNo].root, upOrDown, 11);
+						makeQuantiseArray();
 					}
-					else {
-						if ((editMode == SEQOPT && !upOrDown) || (editMode == RANDALL && upOrDown)) {
-							editMode = RANDVALS;
-						}
-						else {
-							if ((editMode == RANDVALS && upOrDown) || (editMode == RANDALL && !upOrDown)) {
-								editMode = SEQOPT;
-							}
-						}
+					if (editMode == SEQSCALE) {
+						cv.seq[cvSeqNo].scale = AddNLoop(cv.seq[cvSeqNo].scale, upOrDown, 2);
 					}
 
 				}
@@ -602,7 +616,9 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 
 
 					if (btns[b].name == ENCODER) {
-
+#if DEBUGBTNS
+						Serial.println("Btn: Encoder");
+#endif
 						if (checkEditing()) {
 							switch (editMode) {
 							case STEPV:
@@ -615,8 +631,11 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 								editMode = STEPV;
 								break;
 							case PATTERN:
-								editMode = STEPS;
+								editMode = SEQMODE;
 								break;
+							case SEQMODE:
+								editMode = STEPS;
+								break;	
 							case STEPS:
 								editMode = LOOPFIRST;
 								break;
@@ -627,23 +646,17 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 								editMode = SEQOPT;
 								break;
 							case SEQOPT:
-								editMode = STEPS;
-								break;
-							case RANDALL:
-								if (activeSeq == SEQCV) {
-									initCvSequence(cvSeqNo, INITRAND, cv.seq[cvSeqNo].steps);
-								}
-								else {
-									initGateSequence(gateSeqNo, INITRAND, gate.seq[gateSeqNo].steps);
+								if (submenuVal == 0) {
+									editMode = (activeSeq == SEQCV && cv.seq[cvSeqNo].mode == PITCH) ? SEQROOT : SEQMODE;
+								} else  {		// "None", "All", "Vals", "Blank"
+									activeSeq == SEQCV ? initCvSequence(cvSeqNo, (seqInitType)submenuVal, cv.seq[cvSeqNo].steps) : initGateSequence(gateSeqNo, (seqInitType)submenuVal, gate.seq[gateSeqNo].steps);
 								}
 								break;
-							case RANDVALS:
-								if (activeSeq == SEQCV) {
-									initCvSequence(cvSeqNo, INITVALS, cv.seq[cvSeqNo].steps);
-								}
-								else {
-									initGateSequence(gateSeqNo, INITVALS, gate.seq[gateSeqNo].steps);
-								}
+							case SEQROOT:
+								editMode = SEQSCALE;
+								break;
+							case SEQSCALE:
+								editMode = SEQMODE;
 								break;
 							case SETUP:
 								break;
@@ -656,11 +669,11 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 							}
 						}
 						else {
-							editMode = editStep == -1 ? STEPS : STEPV;
+							// if not currently editing initialise to first step of editing menu
+							editMode = editStep == -1 ? SEQMODE : STEPV;
+							submenuVal = 0;
 						}
-#if DEBUGBTNS
-						Serial.println("Btn: Encoder");
-#endif
+
 						lastEditing = millis();
 					}
 
@@ -746,32 +759,41 @@ void setCV(float setVolt) {
 		setVolt = quantiseVolts(setVolt);
 	}
 	float dacVolt = (setVolt / 5 * 4095) + cvOffset;
-	//Serial.print("CV: "); Serial.println((int)dacVolt);
-	//dacVolt += 122;
-	//Serial.print("CV + 100: "); Serial.println((int)dacVolt);
-
 	analogWrite(DACPIN, (int)dacVolt);
 }
 
 
 
 float quantiseVolts(float v) {
-	float v1 = v - int(v);
+	
 #if DEBUGQUANT
 	Serial.print("v in: "); Serial.print(v, 3);
 #endif
-	for (int8_t x = 0; x < 12; x++) {
-		if (v1 <= quantiseRange[x].to) {
-			v = int(v) + quantiseRange[x].target;
-			break;
+
+	if (cv.seq[cvSeqNo].scale == 0) {		// chromatic
+		v = (float)round(v * 12) / 12;
+	}
+	else {
+		float v1 = v - int(v);
+		for (int8_t x = 0; x < 12; x++) {
+			if (v1 <= quantiseRange[x].to) {
+				v = int(v) + quantiseRange[x].target;
+				break;
+			}
 		}
 	}
+
 #if DEBUGQUANT
 	Serial.print("  v out: "); Serial.print(v, 3);Serial.print("  "); Serial.println(dispHandler.pitchFromVolt(v));
 #endif
 
 	return v;
 }
+//
+//uint8_t AddAndLoop(uint8_t x, boolean add, uint8_t max) {
+//	// adds or subtracts one from a number, looping back to zero if > max or to max if < 0
+//	return (x == max && add) ? 0 : (x == 0 && !add) ? max : add ? x + 1 : x - 1;
+//}
 
 
 boolean checkEditing() {
@@ -816,7 +838,9 @@ float getRandLimit(CvStep s, rndType getUpper) {
 void makeQuantiseArray() {
 	//	makes an array of each scale note voltage with the upper limit of CV that will be quantised to that note
 #if DEBUGQUANT
-	delay(500);
+	if (millis() < 1000) {
+		delay(500);
+	}
 #endif
 
 	/*
@@ -833,16 +857,20 @@ void makeQuantiseArray() {
 	0.833	A#
 	0.917	B
 	1.000	C
-
 	*/
+
+	// no need to generate quantise table if not in pitched mode, chromatic scale or still using previous scale
+	if (cv.seq[cvSeqNo].mode != PITCH || cv.seq[cvSeqNo].scale == 0 || (cv.seq[cvSeqNo].root == oldRoot && cv.seq[cvSeqNo].scale == oldScale)) {
+		return;
+	}
+
 	uint8_t lookupPos = 0;
 	uint8_t s = 0;
-	//quantRoot = 0;
-	float targCurr, targPrev, toPrev;
+	float targCurr, targPrev, toPrev = 0;
 	for (uint8_t n = 0; n < 25; n++) {
-		if (scaleNotes[quantScale][n % 12] == 1) {
+		if (scaleNotes[cv.seq[cvSeqNo].scale][n % 12] == 1) {
 
-			targCurr = 0.083333 * (n + quantRoot);
+			targCurr = 0.083333 * (n + cv.seq[cvSeqNo].root);
 			if (lookupPos > 0) {
 				// get upper range of previous scale note by averaging difference
 				toPrev = targPrev + ((targCurr - targPrev) / 2);
@@ -861,9 +889,12 @@ void makeQuantiseArray() {
 		}
 	}
 
+	oldRoot = cv.seq[cvSeqNo].root;
+	oldScale = cv.seq[cvSeqNo].scale;
+
 #if DEBUGQUANT
-	Serial.print("Quantise scale: "); Serial.println(scales[quantScale]);
-	Serial.print("Root adjust: "); Serial.println(pitches[quantRoot]);
+	Serial.print("Quantise scale: "); Serial.println(scales[cv.seq[cvSeqNo].scale]);
+	Serial.print("Root adjust: "); Serial.println(pitches[cv.seq[cvSeqNo].root]);
 	for (uint8_t n = 0; n < 12; n++) {
 		Serial.print(n); Serial.print(" target: "); Serial.print(quantiseRange[n].target, 3); Serial.print("  to: "); Serial.println(quantiseRange[n].to, 3);
 	}

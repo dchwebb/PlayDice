@@ -124,7 +124,7 @@ void SetupMenu::menuPicker(int action) {
 					if (menu[m].name == "Quantise Root") {
 						quantRoot = submenuVal;
 						setVal(menu[m].name, pitches[quantRoot]);
-						makeQuantiseArray();
+						//makeQuantiseArray();
 					}
 					if (menu[m].name == "Scale") {
 						quantScale = submenuVal;
@@ -343,7 +343,7 @@ boolean SetupMenu::loadSettings() {
 	
 
 	if (pitchMode && quantScale > 0) {
-		makeQuantiseArray();
+		//makeQuantiseArray();
 	}
 
 	// deserialise cv struct
