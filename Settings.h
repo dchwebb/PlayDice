@@ -43,12 +43,14 @@ enum rndType { UPPER, LOWER };
 
 static String const OffOnOpts[] = { "Off", "On" };
 String const pitches[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
-String const scales[] = { "Chromatic", "Major", "Pentatonic" };
+String const scales[] = { "Chromatic", "Major", "Pentatonic", "Harmonic minor", "Melodic minor" };
+uint8_t const scaleSize = 5;
+String const scalesShort[] = { "", "", "p", "h", "m" };
 String const actions[] = { "Stutter", "Restart", "Pause" };
 String const initSeq[] = { "None", "All", "Vals", "Blank" };
 enum seqInitType { INITNONE, INITRAND, INITVALS, INITBLANK };
 uint8_t const initSeqSize = 4;
-static boolean scaleNotes[3][12] = { { 1,1,1,1,1,1,1,1,1,1,1,1 },{ 1,0,1,0,1,1,0,1,0,1,0,1 },{ 1,0,0,1,0,1,0,1,0,0,1,0 } };
+static boolean scaleNotes[5][12] = { { 1,1,1,1,1,1,1,1,1,1,1,1 },{ 1,0,1,0,1,1,0,1,0,1,0,1 },{ 1,0,0,1,0,1,0,1,0,0,1,0 },{ 1,0,1,1,0,1,0,1,1,0,0,1 },{ 1,0,1,1,0,1,0,1,0,1,0,1 } };
 
 // adds or subtracts one from a number, looping back to zero if > max or to max if < 0
 #define AddNLoop(x,add,max) ((x)==(max)&&(add)?0:((x)==0&&!(add)?(max):((add)?(x)+1:(x)-1)))

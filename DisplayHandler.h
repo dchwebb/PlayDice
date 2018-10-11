@@ -6,7 +6,7 @@
 #include "WString.h"
 #include <array>
 
-extern uint16_t bpm;
+extern float bpm;
 extern int8_t cvStep;
 extern int8_t gateStep;
 extern int8_t editStep;
@@ -22,9 +22,9 @@ extern uint8_t cvLoopFirst;		// first sequence in loop
 extern uint8_t cvLoopLast;		// last sequence in loop
 extern uint8_t gateLoopFirst;	// first sequence in loop
 extern uint8_t gateLoopLast;	// last sequence in loop
-extern boolean pitchMode;		// set to true if CV mode displays as pitches
-extern uint8_t quantRoot;		// if quantising in pitchmode sets root note
-extern uint8_t quantScale;		// if quantising in pitchmode sets scale
+//extern boolean pitchMode;		// set to true if CV mode displays as pitches
+//extern uint8_t quantRoot;		// if quantising in pitchmode sets root note
+//extern uint8_t quantScale;		// if quantising in pitchmode sets scale
 extern SetupMenu setupMenu;
 extern float getRandLimit(CvStep s, rndType getUpper);
 extern double getRand();
@@ -125,7 +125,7 @@ void DisplayHandler::displaySetup() {
 	display.setCursor(60, 4);
 	display.print("BPM");
 	display.setCursor(80, 4);
-	display.print(bpm);
+	display.print(bpm, 0);
 
 	if (clock.hasSignal()) {
 		display.setCursor(105, 4);
@@ -205,11 +205,16 @@ void DisplayHandler::displayLanes() {
 	//	Write the sequence number for CV and gate sequence
 	if (!editing || activeSeq == SEQCV) {
 		display.setCursor(0, 0);
-		display.print("cv");
+		if (cv.seq[cvSeqNo].mode == PITCH) {
+			display.print(cv.seq[cvSeqNo].scale == 0 ? "Pi" : pitches[cv.seq[cvSeqNo].root] + "" + scalesShort[cv.seq[cvSeqNo].scale]);
+		}
+		else {
+			display.print("cv");
+		}
 	}
 	if (!editing || activeSeq == SEQGATE) {
 		display.setCursor(0, 39);
-		display.print("Gt");
+		display.print(gate.seq[gateSeqNo].mode == TRIGGER ? "Tr" : "Gt");
 	}
 
 	display.setTextSize(2);
@@ -364,8 +369,8 @@ void DisplayHandler::displayLanes() {
 
 		if (activeSeq == SEQCV) {
 			if (editMode == STEPR || editMode == STEPV || editMode == STUTTER) {
-				String v = pitchMode ? pitchFromVolt(cv.seq[cvSeqNo].Steps[editStep].volts) : String(cv.seq[cvSeqNo].Steps[editStep].volts);
-				drawParam(pitchMode ? "Pitch" : "Volts", v, 0, 39, 36, editMode == STEPV);
+				String v = cv.seq[cvSeqNo].mode == PITCH ? pitchFromVolt(cv.seq[cvSeqNo].Steps[editStep].volts) : String(cv.seq[cvSeqNo].Steps[editStep].volts);
+				drawParam(cv.seq[cvSeqNo].mode == PITCH ? "Pitch" : "Volts", v, 0, 39, 36, editMode == STEPV);
 				drawParam("Random", String(cv.seq[cvSeqNo].Steps[editStep].rand_amt), 38, 39, 44, editMode == STEPR);
 				drawParam("Stutter", String(cv.seq[cvSeqNo].Steps[editStep].stutter), 81, 39, 47, editMode == STUTTER);
 			}
@@ -380,8 +385,8 @@ void DisplayHandler::displayLanes() {
 			}
 
 			if (editMode == SEQROOT || editMode == SEQSCALE) {
-				drawParam("Root", pitches[cv.seq[cvSeqNo].root], 0, 39, 49, editMode == SEQROOT);
-				drawParam("Scale", scales[cv.seq[cvSeqNo].scale], 50, 39, 70, editMode == SEQSCALE);
+				drawParam("Root", pitches[cv.seq[cvSeqNo].root], 0, 39, 35, editMode == SEQROOT);
+				drawParam("Scale", scales[cv.seq[cvSeqNo].scale], 36, 39, 90, editMode == SEQSCALE);
 
 			}
 

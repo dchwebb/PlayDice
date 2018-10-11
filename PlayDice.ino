@@ -1,4 +1,3 @@
-//#include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Encoder.h>
 #include "Adafruit_SSD1306.h"
@@ -6,13 +5,11 @@
 #include "DisplayHandler.h"
 #include "SetupFunctions.h"
 #include "Settings.h"
-//#include <array>
-//#include <algorithm>
 
 
 //	declare variables
 uint16_t tempoPot = 512, oldTempoPot = 0;		// Reading from tempo potentiometer for setting bpm
-uint16_t bpm = 120;				// beats per minute of sequence (assume sequence runs in eighth notes for now)
+float bpm = 120;				// beats per minute of sequence (assume sequence runs in eighth notes for now)
 uint16_t minBPM = 35;			// minimum BPM allowed for internal/external clock
 uint16_t maxBPM = 300;			// maximum BPM allowed for internal/external clock
 elapsedMillis timeCounter = 0;  // millisecond counter to check if next sequence step is due
@@ -23,7 +20,6 @@ boolean saveRequired;			// set to true after editing a parameter needing a save 
 boolean autoSave = 1;			// set to true if autosave enabled
 float cvRandVal = 0;			// Voltage of current step with randomisation applied
 boolean gateRandVal;			// 1 or 0 according to whether gate is high or low after randomisation
-boolean triggerMode = 0;		// Gate sequencer outputs triggers rather than gates
 uint32_t lastGate;				// Time gate was last set to high for use with trigger mode
 uint8_t cvStutterStep;			// if a step is in stutter mode store the count of the current stutters 
 uint8_t gateStutterStep;		// if a step is in stutter mode store the count of the current stutters 
@@ -38,7 +34,7 @@ int8_t gateStep = -1;			// increments each step of gate sequence
 int8_t editStep = 0;			// store which step is currently selected for editing (-1 = choose seq, 0-7 are the sequence steps)
 editType editMode = STEPV;		// enum editType - eg editing voltage, random amts etc
 seqType activeSeq = SEQCV;		// whether the CV or Gate rows is active for editing
-uint16_t clockBPM = 0;			// BPM read from external clock
+float clockBPM = 0;			// BPM read from external clock
 long oldEncPos = 0;
 boolean pause;					// if true pause sequencers
 boolean actionStutter;			// Stutter triggered by action button
@@ -48,9 +44,10 @@ float lfoX = 1, lfoY = 0;		// LFO parameters for quick Minsky approximation
 float lfoSpeed;					// lfoSpeed calculated from tempo pot
 float oldLfoSpeed;				// lfoSpeed calculated from tempo pot
 uint8_t lfoJitter;				// because the analog pot is more sensitive at the bottom of its range adjust the threshold before detecting a pot turn
-boolean pitchMode;				// set to true if CV lane displays and quantises to pitches
-uint8_t quantRoot;				// if quantising in pitchmode sets root note
-uint8_t quantScale;				// if quantising in pitchmode sets scale
+//boolean pitchMode;				// set to true if CV lane displays and quantises to pitches
+//uint8_t quantRoot;				// if quantising in pitchmode sets root note
+//uint8_t quantScale;				// if quantising in pitchmode sets scale
+//boolean triggerMode = 0;		// Gate sequencer outputs triggers rather than gates
 uint8_t oldRoot = -1;				// previous root note to check if we need to rebuild quantise table
 uint8_t oldScale;				// previous scale
 elapsedMillis lfoCounter = 0;	// millisecond counter to check if next lfo calculation is due
@@ -168,12 +165,12 @@ void loop() {
 	//	read value of clock signal if present and set bmp accordingly
 	clockBPM = clock.readClock();
 
-#if DEBUGCLOCK
-	if (debugCounter > 5) {
-		debugCounter = 0;
-		clock.printDebug();
-	}
-#endif
+//#if DEBUGCLOCK
+//	if (debugCounter > 5) {
+//		debugCounter = 0;
+//		clock.printDebug();
+//	}
+//#endif
 
 	tempoPot = analogRead(TEMPOPIN);		//  read value of potentiometer to set speed
 
@@ -183,6 +180,7 @@ void loop() {
 		// basic clock divider allowing tempo to be halved or doubled depending on position of tempo pot
 		if (tempoPot < 205) {
 			bpm = clockBPM / 4;
+			//Serial.println(clockBPM, 3);
 			clockDiv = "/4";
 		} else if (tempoPot < 410) {
 			bpm = clockBPM / 2;
@@ -203,15 +201,18 @@ void loop() {
 		clockDiv = "";
 	}
 
+	//	if clocking provide some leeway for clock being slightly earlier than expected
+	uint8_t lagOffset = clock.hasSignal() ? (300 / bpm) : 0;
+
 	//	check if the sequence counter is ready to advance to the next step. Also if using external clock wait for pulse
 	uint16_t timeStep = 1000 / (((float)bpm / 60) * 2);		// get length of step based on bpm
 
-	boolean newStep = (timeCounter >= timeStep && (!clock.hasSignal() || millis() - clock.clockHighTime < 10));
+	boolean newStep = (timeCounter >= timeStep - lagOffset && (!clock.hasSignal() || millis() - clock.clockHighTime < 10));
 
 	//	When the clock is slow relative to the speed of the tempo (usually at 4x clock speed) there won't be a clock tick for every beat
 	if (!newStep && timeCounter >= timeStep && clock.clockInterval + 10 >= timeCounter + timeStep && millis() - clock.clockHighTime > clock.clockInterval / 2) {
 #if DEBUGSTEP
-Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.print(" ci int: ");  Serial.print(clock.clockInterval); Serial.print(" timeStep: ");  Serial.print(timeStep); Serial.print(" tc: ");  Serial.print(timeCounter); Serial.print(" bpm: ");  Serial.println(bpm);
+Serial.println("m-ch: " + String(millis() - clock.clockHighTime) + " ci int: " + String(clock.clockInterval) + " timeStep: " + String(timeStep) + " tc: " + String(timeCounter) + " bpm: " + String(bpm));
 #endif
 		newStep = 1;
 	}	
@@ -219,17 +220,17 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 	boolean newGateStutter = 0;
 	boolean newCVStutter = 0;
 	if (gateStutterStep > 0 && gateStutterStep < gate.seq[gateSeqNo].Steps[gateStep].stutter && !pause) {
-		if (timeCounter >= gateStutterStep * (timeStep / gate.seq[gateSeqNo].Steps[gateStep].stutter)) {
+		if (timeCounter >= gateStutterStep * (timeStep / gate.seq[gateSeqNo].Steps[gateStep].stutter) - lagOffset) {
 #if DEBUGSTEP
-	Serial.print("new gate stutter step: ");  Serial.print(gateStutterStep);  Serial.print(" ms "); Serial.println(millis());
+			Serial.println("Gate stutter step: " + String(gateStutterStep) + "   ms " + String(millis()) + "  time error: " + String((gateStutterStep * (timeStep / gate.seq[gateSeqNo].Steps[gateStep].stutter) - timeCounter)));
 #endif
 			newGateStutter = 1;
 		}
 	}
 	if (cvStutterStep > 0 && cvStutterStep < cv.seq[cvSeqNo].Steps[cvStep].stutter && !pause) {
-		if (timeCounter >= cvStutterStep * (timeStep / cv.seq[cvSeqNo].Steps[cvStep].stutter)) {
+		if (timeCounter >= cvStutterStep * (timeStep / cv.seq[cvSeqNo].Steps[cvStep].stutter) - lagOffset) {
 #if DEBUGSTEP
-			Serial.print("new cv stutter step: "); Serial.println(millis());
+			Serial.println("Cv stutter step: " + String(cvStutterStep) + "   ms " + String(millis()));
 #endif
 			newCVStutter = 1;
 		}
@@ -241,7 +242,7 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 		//	divide current step length by stutter count - for now actionStutterNo
 		if (stutterStep == 0) {
 			stutterStep = (timeCounter / (timeStep / actionStutterNo)) + 1;
-			Serial.print("tc: "); Serial.print(timeCounter);  Serial.print(" ts ");  Serial.println(timeStep);
+			//Serial.println("tc: " + String(timeCounter) + " ts " + String(timeStep));
 		}
 		if (timeCounter >= stutterStep * (timeStep / actionStutterNo) && stutterStep < actionStutterNo && !pause) {
 #if DEBUGSTEP
@@ -284,7 +285,7 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 			gateStutterStep = 0;
 			stutterStep = 0;
 #if DEBUGSTEP
-			Serial.print("new step: "); Serial.print(cvStep); Serial.print(" millis: "); Serial.println(millis());
+			Serial.println("*** New step.  CV " + String(cvStep) + "  Gate " + String(gateStep) + "  ts " + String(timeStep) + "  BPM " + String(bpm, 2) + "  millis: " + String(millis()));
 #endif
 
 		}
@@ -296,7 +297,7 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 		);
 
 #if DEBUGSTEP
-		Serial.print("guess next step: "); Serial.println(guessNextStep);
+		Serial.println("guess next step: " + String(guessNextStep) + "  tc: " + String(timeCounter));
 #endif
 
 		// CV sequence: calculate possible ranges of randomness to ensure we don't try and set a random value out of permitted range
@@ -334,7 +335,7 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 				gateStutterStep += 1;
 				gateRandVal = ((gateStutterStep + (gate.seq[gateSeqNo].Steps[gateStep].on ? 0 : 1)) % 2 > 0);
 #if DEBUGSTEP
-				Serial.print("Step: "); Serial.print(gateStep); Serial.print(" grv: "); Serial.print(gateRandVal); Serial.print(" gss: "); Serial.println(gateStutterStep);
+				//Serial.println("Gate step: " + String(gateStep) + " grv: " + String(gateRandVal) + " gss: " + String(gateStutterStep));
 #endif
 			}
 			else {
@@ -354,7 +355,7 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 
 			}
 			digitalWrite(GATEOUT, gateRandVal);
-			if (triggerMode && gateRandVal) {
+			if (gate.seq[gateSeqNo].mode == TRIGGER && gateRandVal) {
 				lastGate = millis();
 #if DEBUGSTEP
 				Serial.println("Gate off - trigger mode"); 
@@ -374,7 +375,7 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 			newStep = 0;
 		}
 	}
-	else if (triggerMode && gateRandVal && lastGate > 0 && lastGate < millis() - 10) {
+	else if (gate.seq[gateSeqNo].mode == TRIGGER && gateRandVal && lastGate > 0 && lastGate < millis() - 10) {
 		digitalWrite(GATEOUT, 0);
 		lastGate = 0;
 	}
@@ -400,44 +401,41 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 					if (activeSeq == SEQCV) {
 						CvStep *s = &cv.seq[cvSeqNo].Steps[editStep];
 						if (editMode == STEPV) {
-							if (pitchMode) {
+							if (cv.seq[cvSeqNo].mode == PITCH) {
 								float n = s->volts + (upOrDown ? 0.08333 : -0.08333);
-								Serial.print("n: "); Serial.print(n, 3); Serial.print("qn: "); Serial.print(quantiseVolts(n), 3); Serial.print(" sn: "); Serial.println(quantiseVolts(s->volts), 3);
 								while (round(quantiseVolts(n) * 100) == round(quantiseVolts(s->volts) * 100)) {
 									n += (upOrDown ? 0.08333 : -0.08333);
-									Serial.print("aq: "); Serial.println(n, 3);
 								}
 								s->volts = quantiseVolts(n);
-								//s->volts = (s->volts + (upOrDown ? 0.08333 : -0.08333));//quantiseVolts
 							}
 							else {
 								s->volts += upOrDown ? 0.10 : -0.10;
 							}
 							s->volts = constrain(s->volts, 0, 5);
-							Serial.print("Edit volts: "); Serial.println(s->volts);
+							//Serial.print("Edit volts: "); Serial.println(s->volts);
 						}
 						if (editMode == STEPR && (upOrDown || s->rand_amt > 0) && (!upOrDown || s->rand_amt < 10)) {
 							s->rand_amt += upOrDown ? 1 : -1;
-							Serial.print("Edit rand: "); Serial.println(s->rand_amt);
+							//Serial.print("Edit cv rand: "); Serial.println(s->rand_amt);
 						}
 						if (editMode == STUTTER && (upOrDown || s->stutter > 0) && (!upOrDown || s->stutter < 8)) {
 							s->stutter += upOrDown ? (s->stutter == 0 ? 2 : 1) : (s->stutter == 2 ? -2 : -1);
-							Serial.print("Edit stutter: "); Serial.println(s->stutter);
+							//Serial.print("Edit cv stutter: "); Serial.println(s->stutter);
 						}
 					}
 					else {
 						GateStep *s = &gate.seq[gateSeqNo].Steps[editStep];
 						if (editMode == STEPV) {
 							s->on = !s->on;
-							Serial.print("on: "); Serial.print(s->on);
+							//Serial.print("Edit gate on: "); Serial.print(s->on);
 						}
 						if (editMode == STEPR && (upOrDown || s->rand_amt > 0) && (!upOrDown || s->rand_amt < 10)) {
 							s->rand_amt += upOrDown ? 1 : -1;
-							Serial.print("rand: "); Serial.print(s->rand_amt);
+							//Serial.print("Edit gate rand: "); Serial.print(s->rand_amt);
 						}
 						if (editMode == STUTTER && (upOrDown || s->stutter > 0) && (!upOrDown || s->stutter < 8)) {
 							s->stutter += upOrDown ? (s->stutter == 0 ? 2 : 1) : (s->stutter == 2 ? -2 : -1);
-							Serial.print("stutter: "); Serial.print(s->stutter);
+							//Serial.print("Edit gate stutter: "); Serial.print(s->stutter);
 						}
 					}
 				}
@@ -446,7 +444,7 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 					//	sequence select mode
 					if (editMode == PATTERN) {
 						if (activeSeq == SEQCV) {
-							cvSeqNo += upOrDown ? (cvSeqNo < 7 ? 1 : 0) : cvSeqNo > 0 ? -1 : 0;// because we are using an unsigned int -1 goes to 255
+							cvSeqNo = AddNLoop(cvSeqNo, upOrDown, 7);
 							if (cvLoopFirst == cvLoopLast) {
 								cvLoopFirst = cvLoopLast = cvSeqNo;
 							}
@@ -467,8 +465,7 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 					if (editMode == LOOPFIRST) {
 						uint8_t * loopF = activeSeq == SEQCV ? &cvLoopFirst : &gateLoopFirst;
 						uint8_t * loopL = activeSeq == SEQCV ? &cvLoopLast : &gateLoopLast;
-						*loopF += upOrDown ? 1 : -1;
-						*loopF = *loopF == 255 ? 7 : (*loopF > 7 ? 0 : *loopF);		// because we are using an unsigned int -1 goes to 255
+						*loopF = AddNLoop(*loopF, upOrDown, 7);
 						*loopL = constrain(*loopL, *loopF, 7);
 #if DEBUGBTNS
 						Serial.print("First loop: ");  Serial.print(*loopF);
@@ -478,9 +475,9 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 					if (editMode == LOOPLAST) {
 						uint8_t * loopF = activeSeq == SEQCV ? &cvLoopFirst : &gateLoopFirst;
 						uint8_t * loopL = activeSeq == SEQCV ? &cvLoopLast : &gateLoopLast;
-						*loopL += upOrDown ? 1 : -1;
-						*loopL = *loopL == 255 ? *loopF : (*loopL > 7 ? 7 : *loopL);		// because we are using an unsigned int -1 goes to 255
+						*loopL = AddNLoop(*loopL, upOrDown, 7);
 						*loopL = constrain(*loopL, *loopF, 7);
+
 #if DEBUGBTNS
 						Serial.print("Last loop: ");  Serial.print(*loopL);
 #endif
@@ -517,7 +514,8 @@ Serial.print("m-ch: ");  Serial.print(millis() - clock.clockHighTime); Serial.pr
 						makeQuantiseArray();
 					}
 					if (editMode == SEQSCALE) {
-						cv.seq[cvSeqNo].scale = AddNLoop(cv.seq[cvSeqNo].scale, upOrDown, 2);
+						cv.seq[cvSeqNo].scale = AddNLoop(cv.seq[cvSeqNo].scale, upOrDown, scaleSize - 1);
+						makeQuantiseArray();
 					}
 
 				}
@@ -755,7 +753,7 @@ void initGateSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
 void setCV(float setVolt) {
 	//  DAC buffer takes values of 0 to 4095 relating to 0v to 3.3v
 	//  setVolt will be in range 0 - voltsMax (5 unless trying to do pitch which might need negative)
-	if (pitchMode) {
+	if (cv.seq[cvSeqNo].mode == PITCH) {
 		setVolt = quantiseVolts(setVolt);
 	}
 	float dacVolt = (setVolt / 5 * 4095) + cvOffset;
@@ -784,7 +782,7 @@ float quantiseVolts(float v) {
 	}
 
 #if DEBUGQUANT
-	Serial.print("  v out: "); Serial.print(v, 3);Serial.print("  "); Serial.println(dispHandler.pitchFromVolt(v));
+	Serial.print("  v out: "); Serial.print(v, 3); Serial.println("  " + String(dispHandler.pitchFromVolt(v)) + "  " + String(scales[cv.seq[cvSeqNo].scale]));
 #endif
 
 	return v;
@@ -867,7 +865,7 @@ void makeQuantiseArray() {
 	uint8_t lookupPos = 0;
 	uint8_t s = 0;
 	float targCurr, targPrev, toPrev = 0;
-	for (uint8_t n = 0; n < 25; n++) {
+	for (uint8_t n = 0; n < 28; n++) {
 		if (scaleNotes[cv.seq[cvSeqNo].scale][n % 12] == 1) {
 
 			targCurr = 0.083333 * (n + cv.seq[cvSeqNo].root);
@@ -876,11 +874,11 @@ void makeQuantiseArray() {
 				toPrev = targPrev + ((targCurr - targPrev) / 2);
 			}
 #if DEBUGQUANT
-			//Serial.print(n); Serial.print(" toPrev: "); Serial.print(toPrev); Serial.print("  targCurr: "); Serial.print(targCurr); Serial.print(" targPrev: "); Serial.println(targPrev);
+			Serial.print(n); Serial.print(" toPrev: "); Serial.print(toPrev); Serial.print("  targCurr: "); Serial.print(targCurr); Serial.print(" targPrev: "); Serial.println(targPrev);
 #endif
 			// once we have got beyond the first octave rewrite sequence so that it is ordered but starting from 0 volts
 			if (toPrev > 1) {
-				quantiseRange[s].target = targPrev - (float)1;
+				quantiseRange[s].target = constrain(targPrev - (float)1, 0, 5);
 				quantiseRange[s].to = toPrev - (float)1;
 				s += 1;
 			}
@@ -893,10 +891,9 @@ void makeQuantiseArray() {
 	oldScale = cv.seq[cvSeqNo].scale;
 
 #if DEBUGQUANT
-	Serial.print("Quantise scale: "); Serial.println(scales[cv.seq[cvSeqNo].scale]);
-	Serial.print("Root adjust: "); Serial.println(pitches[cv.seq[cvSeqNo].root]);
+	Serial.println("Quantise scale: " + pitches[cv.seq[cvSeqNo].root] + " " + scales[cv.seq[cvSeqNo].scale]);
 	for (uint8_t n = 0; n < 12; n++) {
-		Serial.print(n); Serial.print(" target: "); Serial.print(quantiseRange[n].target, 3); Serial.print("  to: "); Serial.println(quantiseRange[n].to, 3);
+		Serial.println(String(n) + "  target: " + String(quantiseRange[n].target, 3) + "  " + pitches[round(quantiseRange[n].target * 12) % 12] + "  to: " + String(quantiseRange[n].to, 3));
 	}
 #endif
 
