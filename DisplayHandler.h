@@ -22,21 +22,16 @@ extern uint8_t cvLoopFirst;		// first sequence in loop
 extern uint8_t cvLoopLast;		// last sequence in loop
 extern uint8_t gateLoopFirst;	// first sequence in loop
 extern uint8_t gateLoopLast;	// last sequence in loop
-//extern boolean pitchMode;		// set to true if CV mode displays as pitches
-//extern uint8_t quantRoot;		// if quantising in pitchmode sets root note
-//extern uint8_t quantScale;		// if quantising in pitchmode sets scale
-extern SetupMenu setupMenu;
 extern float getRandLimit(CvStep s, rndType getUpper);
 extern double getRand();
 extern boolean checkEditing();
 extern ClockHandler clock;
-extern const String pitches[];
-extern const String *submenuArray;
 extern uint8_t submenuSize;			// number of items in array used to pick from submenu items
-extern uint8_t submenuVal;				// currently selected submenu item
+extern uint8_t submenuVal;			// currently selected submenu item
 extern String clockDiv;
+extern boolean pause;				// if true pause sequencers
 
-extern ClockHandler clock;
+
 extern SetupMenu setupMenu;
 
 class DisplayHandler {
@@ -246,7 +241,6 @@ void DisplayHandler::displayLanes() {
 	// Draw the sequence steps for CV and gate sequence
 	for (int i = 0; i < 8; i++) {
 		int voltHPos = 17 + (i * 14);
-		//int voltVPos = 27 - round(cv.seq[cvSeqNo].Steps[i].volts * 5);
 		int voltVPos = cvVertPos(cv.seq[cvSeqNo].Steps[i].volts);
 
 		// Draw CV pattern
@@ -319,7 +313,7 @@ void DisplayHandler::displayLanes() {
 			}
 
 			// draw current step - larger block if 'on' larger base if 'off'
-			if (gateStep == i) {
+			if (gateStep == i && !pause) {
 				if (gateRandVal) {
 					display.fillRect(voltHPos + 3, 45, 8, 29, WHITE);
 				}
@@ -355,13 +349,13 @@ void DisplayHandler::displayLanes() {
 			if (editMode == SEQMODE || editMode == STEPS || editMode == LOOPFIRST || editMode == LOOPLAST || editMode == SEQOPT) {
 				drawParam(gate.seq[gateSeqNo].mode ? "Trigger" : "Gate", String("Steps ") + String(gate.seq[gateSeqNo].steps), -2, 0, 49, editMode == STEPS, 36, 9);
 				drawParam("Loop", String(gateLoopFirst + 1) + String(" - ") + String(gateLoopLast + 1), 49, 0, 38, editMode == LOOPFIRST || editMode == LOOPLAST, editMode == LOOPFIRST ? 51 : 75, 9);
-				drawParam("Rand", initSeq[submenuVal], 88, 0, 40, editMode == SEQOPT, 90, 36);
+				drawParam("Rand", initGateSeq[submenuVal], 88, 0, 40, editMode == SEQOPT, 90, 36);
 				if (editMode == SEQMODE) {
 					display.fillRect(0, 1, 45, 11, INVERSE);
 				}
 				//drawParam("Steps", String(gate.seq[gateSeqNo].steps), 0, 0, 36, editMode == STEPS);
 				//drawParam("Loop", String(gateLoopFirst + 1) + String(" - ") + String(gateLoopLast + 1), 38, 0, 38, editMode == LOOPFIRST || editMode == LOOPLAST, editMode == LOOPFIRST ? 40 : 64, 9);
-				//drawParam("Rand", initSeq[submenuVal], 80, 0, 42, editMode == SEQOPT, 82, 38);
+				//drawParam("Rand", initGateSeq[submenuVal], 80, 0, 42, editMode == SEQOPT, 82, 38);
 
 
 			}
@@ -378,7 +372,7 @@ void DisplayHandler::displayLanes() {
 			if (editMode == SEQMODE || editMode == STEPS || editMode == LOOPFIRST || editMode == LOOPLAST || editMode == SEQOPT) {
 				drawParam(cv.seq[cvSeqNo].mode == CV ? "CV" : "Pitch", String("Steps ") + String(cv.seq[cvSeqNo].steps), -2, 39, 49, editMode == STEPS, 36, 9);
 				drawParam("Loop", String(cvLoopFirst + 1) + String(" - ") + String(cvLoopLast + 1), 49, 39, 38, editMode == LOOPFIRST || editMode == LOOPLAST, editMode == LOOPFIRST ? 51 : 75, 9);
-				drawParam("Rand", initSeq[submenuVal], 88, 39, 40, editMode == SEQOPT, 90, 36);
+				drawParam("Rand", initCVSeq[submenuVal], 88, 39, 40, editMode == SEQOPT, 90, 36);
 				if (editMode == SEQMODE) {
 					display.fillRect(0, 40, 45, 11, INVERSE);
 				}

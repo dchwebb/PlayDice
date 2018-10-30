@@ -16,10 +16,6 @@ extern uint8_t gateLoopFirst;	// first sequence in loop
 extern uint8_t gateLoopLast;	// last sequence in loop
 extern uint32_t lastEditing;
 extern boolean autoSave;		// set to true if autosave enabled
-//extern boolean pitchMode;		// set to true if CV mode displays as pitches
-//extern uint8_t quantRoot;		// if quantising in pitchmode sets root note
-//extern uint8_t quantScale;		// if quantising in pitchmode sets scale
-//extern boolean triggerMode;		// Gate sequencer outputs triggers rather than gates
 extern boolean saveRequired;	// set to true after editing a parameter needing a save (saves batched to avoid too many writes)
 extern void checkEditState();
 extern void normalMode();
@@ -32,17 +28,10 @@ extern uint8_t submenuVal;		// currently selected submenu item
 extern actionOpts actionCVType;
 extern actionOpts actionBtnType;
 extern int8_t cvOffset;
-
-// action mode - what happens when the action button is pressed
-
 const String *submenuArray;		// Stores a pointer to the array used to select submenu choices
 
 std::array<MenuItem, 13> menu{ { { 0, "LFO Mode", 1 },{ 1, "Noise Mode" },{ 2, "Action CV", 0, actions[0] },{ 3, "Action Btn", 0, actions[0] },
 { 4, "Autosave", 0, OffOnOpts[0] },{ 5, "Init All" },{ 6, "Save Settings" },{ 7, "Load Settings" },{ 8, "CV Calibration", 0, "0" } } };
-
-//std::array<MenuItem, 13> menu{ { { 0, "LFO Mode", 1 },{ 1, "Noise Mode" },{ 2, "Action CV", 0, actions[0] },{ 3, "Action Btn", 0, actions[0] },
-//{ 4, "Pitch Mode", 0, OffOnOpts[0] },{ 5, "Quantise Root", 0, pitches[0] },{ 6, "Scale", 0, scales[0] },{ 7, "Trigger Mode", 0, OffOnOpts[0] },
-//{ 8, "Autosave", 0, OffOnOpts[0] },{ 9, "Init All" },{ 10, "Save Settings" },{ 11, "Load Settings" },{ 12, "CV Calibration", 0, "0" } } };
 
 class SetupMenu {
 public:
@@ -123,15 +112,6 @@ void SetupMenu::menuPicker(int action) {
 			// store value back after submenu editing
 			for (uint8_t m = 0; m < menu.size(); m++) {
 				if (menu[m].selected) {
-					//if (menu[m].name == "Quantise Root") {
-					//	quantRoot = submenuVal;
-					//	setVal(menu[m].name, pitches[quantRoot]);
-					//	//makeQuantiseArray();
-					//}
-					//if (menu[m].name == "Scale") {
-					//	quantScale = submenuVal;
-					//	setVal(menu[m].name, scales[quantScale]);
-					//}
 					if (menu[m].name == "Action CV") {
 						actionCVType = (actionOpts)submenuVal;
 						setVal(menu[m].name, actions[actionCVType]);
@@ -204,28 +184,6 @@ void SetupMenu::menuPicker(int action) {
 						saveSettings();
 						menu[m].val = OffOnOpts[autoSave];
 					}
-					//else if (menu[m].name == "Trigger Mode") {
-					//	triggerMode = !triggerMode;
-					//	saveSettings();
-					//	menu[m].val = OffOnOpts[triggerMode];
-					//}
-					//else if (menu[m].name == "Pitch Mode") {
-					//	pitchMode = !pitchMode;
-					//	saveSettings();
-					//	menu[m].val = OffOnOpts[pitchMode];
-					//}
-					//else if (menu[m].name == "Quantise Root") {
-					//	submenuArray = pitches;
-					//	submenuSize = 12;				// can't find way of checking this dynamically
-					//	submenuVal = quantRoot;
-					//	editMode = SUBMENU;
-					//}
-					//else if (menu[m].name == "Scale") {
-					//	submenuArray = scales;
-					//	submenuSize = 3;				// can't find way of checking this dynamically
-					//	submenuVal = quantScale;
-					//	editMode = SUBMENU;
-					//}
 					else if (menu[m].name == "Action CV") {
 						submenuArray = actions;
 						submenuSize = 3;				// can't find way of checking this dynamically
@@ -328,18 +286,9 @@ boolean SetupMenu::loadSettings() {
 	}
 	autoSave = romRead(9);
 	setVal("Autosave", OffOnOpts[autoSave]);
-	//pitchMode = romRead(10);
-	//setVal("Pitch Mode", OffOnOpts[pitchMode]);
-	//quantRoot = romRead(11);
-	//setVal("Quantise Root", pitches[quantRoot]);
-	//quantScale = romRead(12);
-	//setVal("Scale", scales[quantScale]);
-	//actionCVType = (actionOpts)romRead(13);
 	setVal("Action CV", actions[actionCVType]);
 	actionBtnType = (actionOpts)romRead(14);
 	setVal("Action Btn", actions[actionBtnType]);
-	//triggerMode = romRead(15);
-	//setVal("Trigger Mode", OffOnOpts[triggerMode]);
 	cvOffset = romRead(16);
 	setVal("CV Calibration", cvOffset);
 	

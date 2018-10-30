@@ -47,9 +47,13 @@ String const scales[] = { "Chromatic", "Major", "Pentatonic", "Harmonic minor", 
 uint8_t const scaleSize = 5;
 String const scalesShort[] = { "", "", "p", "h", "m" };
 String const actions[] = { "Stutter", "Restart", "Pause" };
-String const initSeq[] = { "None", "All", "Vals", "Blank" };
-enum seqInitType { INITNONE, INITRAND, INITVALS, INITBLANK };
-uint8_t const initSeqSize = 4;
+
+enum seqInitType { INITNONE, INITRAND, INITVALS, INITBLANK, INITHIGH, INITMEDIUM, INITLOW };
+String const initCVSeq[] = { "None", "All", "Vals", "Blank", "High", "Med", "Low" };
+uint8_t const initCVSeqSize = 7;
+String const initGateSeq[] = { "None", "All", "Vals", "Blank" };
+uint8_t const initGateSeqSize = 4;
+
 static boolean scaleNotes[5][12] = { { 1,1,1,1,1,1,1,1,1,1,1,1 },{ 1,0,1,0,1,1,0,1,0,1,0,1 },{ 1,0,0,1,0,1,0,1,0,0,1,0 },{ 1,0,1,1,0,1,0,1,1,0,0,1 },{ 1,0,1,1,0,1,0,1,0,1,0,1 } };
 
 // adds or subtracts one from a number, looping back to zero if > max or to max if < 0

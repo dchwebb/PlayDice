@@ -334,6 +334,11 @@ Serial.println("m-ch: " + String(millis() - clock.clockHighTime) + " ci int: " +
 				}
 				gateStutterStep += 1;
 				gateRandVal = ((gateStutterStep + (gate.seq[gateSeqNo].Steps[gateStep].on ? 0 : 1)) % 2 > 0);
+				
+				// if randomising mute 'on' stutters according to probablility setting
+				if (gate.seq[gateSeqNo].Steps[gateStep].rand_amt && gateRandVal && getRand() * 14 < gate.seq[gateSeqNo].Steps[gateStep].rand_amt) {
+					gateRandVal = 0;
+				}
 #if DEBUGSTEP
 				//Serial.println("Gate step: " + String(gateStep) + " grv: " + String(gateRandVal) + " gss: " + String(gateStutterStep));
 #endif
@@ -487,6 +492,7 @@ Serial.println("m-ch: " + String(millis() - clock.clockHighTime) + " ci int: " +
 					if (editMode == SEQMODE) {
 						if (activeSeq == SEQCV) {
 							cv.seq[cvSeqNo].mode = !cv.seq[cvSeqNo].mode;
+							makeQuantiseArray();
 						}
 						else {
 							gate.seq[gateSeqNo].mode = !gate.seq[gateSeqNo].mode;
@@ -504,8 +510,7 @@ Serial.println("m-ch: " + String(millis() - clock.clockHighTime) + " ci int: " +
 
 					//	Initialise/randomise sequence mode - simple menu system
 					if (editMode == SEQOPT) {
-						submenuVal += (upOrDown ? 1 : -1);
-						submenuVal = submenuVal == 255 ? initSeqSize - 1 : submenuVal > initSeqSize - 1 ? 0 : submenuVal;
+						submenuVal = AddNLoop(submenuVal, upOrDown, (activeSeq == SEQCV ? initCVSeqSize - 1 : initGateSeqSize - 1));
 					} 
 
 					//	Pitch mode root and scale selection
@@ -646,7 +651,7 @@ Serial.println("m-ch: " + String(millis() - clock.clockHighTime) + " ci int: " +
 							case SEQOPT:
 								if (submenuVal == 0) {
 									editMode = (activeSeq == SEQCV && cv.seq[cvSeqNo].mode == PITCH) ? SEQROOT : SEQMODE;
-								} else  {		// "None", "All", "Vals", "Blank"
+								} else  {		// initSeq[] = { "None", "All", "Vals", "Blank", "High", "Med", "Low" };
 									activeSeq == SEQCV ? initCvSequence(cvSeqNo, (seqInitType)submenuVal, cv.seq[cvSeqNo].steps) : initGateSequence(gateSeqNo, (seqInitType)submenuVal, gate.seq[gateSeqNo].steps);
 								}
 								break;
@@ -722,8 +727,16 @@ void initCvSequence(int seqNum, seqInitType initType, uint16_t numSteps = 8) {
 	numSteps = (numSteps == 0 || numSteps > 8 ? 8 : numSteps);
 	cv.seq[seqNum].steps = numSteps;
 	for (int s = 0; s < 8; s++) {
-		cv.seq[seqNum].Steps[s].volts = (initType == INITBLANK ? 2.5 : getRand() * 5);
-		cv.seq[seqNum].Steps[s].rand_amt = (initType == INITRAND ? round((getRand() * 10)) : 0);
+		// INITNONE, INITRAND, INITVALS, INITBLANK, INITHIGH, INITMEDIUM, INITLOW
+		if (initType == INITHIGH || initType == INITMEDIUM || initType == INITLOW) {
+			cv.seq[seqNum].Steps[s].volts = 0.5 + (initType == INITMEDIUM ? 1 : (initType == INITHIGH ? 2 : 0)) + (getRand() * 1.5);
+			cv.seq[seqNum].Steps[s].rand_amt = round(getRand() * 3);
+		}
+		else {
+			cv.seq[seqNum].Steps[s].volts = (initType == INITBLANK ? 2.5 : getRand() * 5);
+			cv.seq[seqNum].Steps[s].rand_amt = (initType == INITRAND ? round((getRand() * 10)) : 0);
+		}
+
 		//	Don't want too many stutters so apply two random checks to see if apply stutter, and if so how much - minimum number of stutters is 2
 		if (initType == INITRAND && getRand() > 0.8) {
 			cv.seq[seqNum].Steps[s].stutter = round((getRand() * 6) + 1);
@@ -787,12 +800,6 @@ float quantiseVolts(float v) {
 
 	return v;
 }
-//
-//uint8_t AddAndLoop(uint8_t x, boolean add, uint8_t max) {
-//	// adds or subtracts one from a number, looping back to zero if > max or to max if < 0
-//	return (x == max && add) ? 0 : (x == 0 && !add) ? max : add ? x + 1 : x - 1;
-//}
-
 
 boolean checkEditing() {
 	// check if recent encoder activity
@@ -836,9 +843,7 @@ float getRandLimit(CvStep s, rndType getUpper) {
 void makeQuantiseArray() {
 	//	makes an array of each scale note voltage with the upper limit of CV that will be quantised to that note
 #if DEBUGQUANT
-	if (millis() < 1000) {
-		delay(500);
-	}
+	if (millis() < 1000) delay(500);
 #endif
 
 	/*
@@ -874,10 +879,10 @@ void makeQuantiseArray() {
 				toPrev = targPrev + ((targCurr - targPrev) / 2);
 			}
 #if DEBUGQUANT
-			Serial.print(n); Serial.print(" toPrev: "); Serial.print(toPrev); Serial.print("  targCurr: "); Serial.print(targCurr); Serial.print(" targPrev: "); Serial.println(targPrev);
+			Serial.println(String(n) + " toPrev: " + String(toPrev) + "  targCurr: " + String(targCurr) + " targPrev: " + String(targPrev));
 #endif
 			// once we have got beyond the first octave rewrite sequence so that it is ordered but starting from 0 volts
-			if (toPrev > 1) {
+			if (toPrev > 1 && s < 12) {
 				quantiseRange[s].target = constrain(targPrev - (float)1, 0, 5);
 				quantiseRange[s].to = toPrev - (float)1;
 				s += 1;
