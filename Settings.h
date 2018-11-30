@@ -11,7 +11,7 @@
 #define DEBUGSTEP 0
 #define DEBUGCLOCK 0
 #define DEBUGRAND 0
-#define DEBUGQUANT 1
+#define DEBUGQUANT 0
 #define DEBUGBTNS 0
 #define DEBUGFRAME 0
 
@@ -22,7 +22,6 @@
 #define ENCDATAPIN 17	// encoder pin 3
 #define GATEOUT 18		// Gate sequence out
 #define DACPIN 40		// CV sequence out
-
 
 #define OLED_CS    9
 #define OLED_DC    8
@@ -44,6 +43,7 @@ enum rndType { UPPER, LOWER };
 static String const OffOnOpts[] = { "Off", "On" };
 String const pitches[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 String const scales[] = { "Chromatic", "Major", "Pentatonic", "Harmonic minor", "Melodic minor" };
+static boolean scaleNotes[5][12] = { { 1,1,1,1,1,1,1,1,1,1,1,1 },{ 1,0,1,0,1,1,0,1,0,1,0,1 },{ 1,0,0,1,0,1,0,1,0,0,1,0 },{ 1,0,1,1,0,1,0,1,1,0,0,1 },{ 1,0,1,1,0,1,0,1,0,1,0,1 } };
 uint8_t const scaleSize = 5;
 String const scalesShort[] = { "", "", "p", "h", "m" };
 String const actions[] = { "Stutter", "Restart", "Pause" };
@@ -54,7 +54,6 @@ uint8_t const initCVSeqSize = 7;
 String const initGateSeq[] = { "None", "All", "Vals", "Blank" };
 uint8_t const initGateSeqSize = 4;
 
-static boolean scaleNotes[5][12] = { { 1,1,1,1,1,1,1,1,1,1,1,1 },{ 1,0,1,0,1,1,0,1,0,1,0,1 },{ 1,0,0,1,0,1,0,1,0,0,1,0 },{ 1,0,1,1,0,1,0,1,1,0,0,1 },{ 1,0,1,1,0,1,0,1,0,1,0,1 } };
 
 // adds or subtracts one from a number, looping back to zero if > max or to max if < 0
 #define AddNLoop(x,add,max) ((x)==(max)&&(add)?0:((x)==0&&!(add)?(max):((add)?(x)+1:(x)-1)))

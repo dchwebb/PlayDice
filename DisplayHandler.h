@@ -1,37 +1,18 @@
 #pragma once
-#include <Adafruit_GFX.h>
-#include "Adafruit_SSD1306.h"
-#include "Settings.h"
 #include "SetupFunctions.h"
-#include "WString.h"
-#include <array>
 
-extern float bpm;
-extern int8_t cvStep;
-extern int8_t gateStep;
-extern int8_t editStep;
+extern int8_t cvStep, gateStep, editStep;
 extern editType editMode;
-extern float cvRandVal;
-extern boolean gateRandVal;
-extern uint8_t cvSeqNo;
-extern uint8_t gateSeqNo;
+extern float bpm, cvRandVal, getRandLimit(CvStep s, rndType getUpper);
+extern boolean gateRandVal, pause;
 extern seqType activeSeq;
 extern CvPatterns cv;
 extern GatePatterns gate;
-extern uint8_t cvLoopFirst;		// first sequence in loop
-extern uint8_t cvLoopLast;		// last sequence in loop
-extern uint8_t gateLoopFirst;	// first sequence in loop
-extern uint8_t gateLoopLast;	// last sequence in loop
-extern float getRandLimit(CvStep s, rndType getUpper);
+extern uint8_t cvSeqNo, gateSeqNo, cvLoopFirst, cvLoopLast, gateLoopFirst, gateLoopLast, submenuSize, submenuVal;
 extern double getRand();
 extern boolean checkEditing();
 extern ClockHandler clock;
-extern uint8_t submenuSize;			// number of items in array used to pick from submenu items
-extern uint8_t submenuVal;			// currently selected submenu item
 extern String clockDiv;
-extern boolean pause;				// if true pause sequencers
-
-
 extern SetupMenu setupMenu;
 
 class DisplayHandler {
@@ -85,7 +66,7 @@ void DisplayHandler::updateDisplay() {
 
 //	Display static lfo screen
 void DisplayHandler::displayLFO() {
-	//display.drawRect(0, 0, 128, 64, WHITE);
+
 	float e = 0.3;
 	float x = 1, y = 0, oldY = 0;
 	for (int i = 0; i < 110; ++i)

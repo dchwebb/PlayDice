@@ -1,37 +1,19 @@
 #pragma once
-#include <Adafruit_GFX.h>
-#include "Adafruit_SSD1306.h"
-//#include "Settings.h"
-#include "DisplayHandler.h"
-#include "WString.h"
 #include <array>
 #include <EEPROM.h>
 
 extern CvPatterns cv;
 extern GatePatterns gate;
 extern editType editMode;
-extern uint8_t cvLoopFirst;		// first sequence in loop
-extern uint8_t cvLoopLast;		// last sequence in loop
-extern uint8_t gateLoopFirst;	// first sequence in loop
-extern uint8_t gateLoopLast;	// last sequence in loop
-extern uint32_t lastEditing;
-extern boolean autoSave;		// set to true if autosave enabled
-extern boolean saveRequired;	// set to true after editing a parameter needing a save (saves batched to avoid too many writes)
-extern void checkEditState();
-extern void normalMode();
-extern void initCvSequence(int seqNum, seqInitType initType, uint16_t numSteps);
-extern void initGateSequence(int seqNum, seqInitType initType, uint16_t numSteps);
-extern void makeQuantiseArray();
-extern String const pitches[];
-extern uint8_t submenuSize;		// number of items in array used to pick from submenu items
-extern uint8_t submenuVal;		// currently selected submenu item
-extern actionOpts actionCVType;
-extern actionOpts actionBtnType;
+extern uint8_t cvLoopFirst, cvLoopLast, gateLoopFirst, gateLoopLast, submenuSize, submenuVal;
+extern boolean autoSave, saveRequired, revEnc;
+extern void checkEditState(), normalMode(), initCvSequence(int seqNum, seqInitType initType, uint16_t numSteps), initGateSequence(int seqNum, seqInitType initType, uint16_t numSteps), makeQuantiseArray();
+extern actionOpts actionCVType, actionBtnType;
 extern int8_t cvOffset;
 const String *submenuArray;		// Stores a pointer to the array used to select submenu choices
 
 std::array<MenuItem, 13> menu{ { { 0, "LFO Mode", 1 },{ 1, "Noise Mode" },{ 2, "Action CV", 0, actions[0] },{ 3, "Action Btn", 0, actions[0] },
-{ 4, "Autosave", 0, OffOnOpts[0] },{ 5, "Init All" },{ 6, "Save Settings" },{ 7, "Load Settings" },{ 8, "CV Calibration", 0, "0" } } };
+{ 4, "Autosave", 0, OffOnOpts[0] },{ 5, "Init All" },{ 6, "Save Settings" },{ 7, "Load Settings" },{ 8, "CV Calibration", 0, "0" },{ 9, "Reverse Encoder", 0, OffOnOpts[0] } } };
 
 class SetupMenu {
 public:
@@ -201,6 +183,12 @@ void SetupMenu::menuPicker(int action) {
 						numberEdit = 1;
 						setVal("CV Calibration", cvOffset);
 					}
+					else if (menu[m].name == "Reverse Encoder") {
+						revEnc = !revEnc;
+						saveSettings();
+						menu[m].val = OffOnOpts[revEnc];
+					}
+
 				}
 			}
 		}
@@ -249,6 +237,7 @@ void SetupMenu::saveSettings() {
 	//romWrite(15, triggerMode);
 
 	romWrite(16, cvOffset);
+	romWrite(17, revEnc);
 
 	// Serialise cv struct
 	char cvToByte[sizeof(cv)];
@@ -291,7 +280,8 @@ boolean SetupMenu::loadSettings() {
 	setVal("Action Btn", actions[actionBtnType]);
 	cvOffset = romRead(16);
 	setVal("CV Calibration", cvOffset);
-	
+	revEnc = romRead(17);
+	setVal("Reverse Encoder", OffOnOpts[revEnc]);
 
 	// deserialise cv struct
 	char cvToByte[sizeof(cv)];

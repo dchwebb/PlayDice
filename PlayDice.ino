@@ -34,7 +34,7 @@ int8_t gateStep = -1;			// increments each step of gate sequence
 int8_t editStep = 0;			// store which step is currently selected for editing (-1 = choose seq, 0-7 are the sequence steps)
 editType editMode = STEPV;		// enum editType - eg editing voltage, random amts etc
 seqType activeSeq = SEQCV;		// whether the CV or Gate rows is active for editing
-float clockBPM = 0;			// BPM read from external clock
+float clockBPM = 0;				// BPM read from external clock
 long oldEncPos = 0;
 boolean pause;					// if true pause sequencers
 boolean actionStutter;			// Stutter triggered by action button
@@ -44,17 +44,15 @@ float lfoX = 1, lfoY = 0;		// LFO parameters for quick Minsky approximation
 float lfoSpeed;					// lfoSpeed calculated from tempo pot
 float oldLfoSpeed;				// lfoSpeed calculated from tempo pot
 uint8_t lfoJitter;				// because the analog pot is more sensitive at the bottom of its range adjust the threshold before detecting a pot turn
-//boolean pitchMode;				// set to true if CV lane displays and quantises to pitches
-//uint8_t quantRoot;				// if quantising in pitchmode sets root note
-//uint8_t quantScale;				// if quantising in pitchmode sets scale
-//boolean triggerMode = 0;		// Gate sequencer outputs triggers rather than gates
-uint8_t oldRoot = -1;				// previous root note to check if we need to rebuild quantise table
+uint8_t oldRoot = -1;			// previous root note to check if we need to rebuild quantise table
 uint8_t oldScale;				// previous scale
 elapsedMillis lfoCounter = 0;	// millisecond counter to check if next lfo calculation is due
 uint8_t submenuSize;			// number of items in array used to pick from submenu items
 uint8_t submenuVal;				// currently selected submenu item
 String clockDiv = "";			// shows whether a clock divider is in place in the setup menu (clocked input with multiplier/divider provided by tempo pot)
 int8_t cvOffset;				// adds an offset to the CV > DAC conversion to account for component tolerance etc
+boolean revEnc;					// If true reverse direction of encoder turn
+
 actionOpts actionCVType = ACTSTUTTER;
 actionOpts actionBtnType = ACTPAUSE;
 
@@ -393,7 +391,7 @@ Serial.println("m-ch: " + String(millis() - clock.clockHighTime) + " ci int: " +
 		// check editing mode is valid for selected step type
 		checkEditState();
 		if (round(newEncPos / 4) != round(oldEncPos / 4)) {
-			boolean upOrDown = newEncPos > oldEncPos;
+			boolean upOrDown = revEnc ? newEncPos < oldEncPos : newEncPos > oldEncPos;
 
 			if (editMode == SETUP || editMode == SUBMENU) {
 				setupMenu.menuPicker(upOrDown ? ENCUP : ENCDN);

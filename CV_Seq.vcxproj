@@ -94,7 +94,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Adafruit_ssd1306.cpp" />
-    <ClCompile Include="DisplayHandler.cpp" />
     <ClCompile Include="Settings.cpp" />
   </ItemGroup>
   <PropertyGroup>
