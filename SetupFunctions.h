@@ -12,7 +12,7 @@ extern actionOpts actionCVType, actionBtnType;
 extern int8_t cvOffset;
 const String *submenuArray;		// Stores a pointer to the array used to select submenu choices
 
-std::array<MenuItem, 13> menu{ { { 0, "LFO Mode", 1 },{ 1, "Noise Mode" },{ 2, "Action CV", 0, actions[0] },{ 3, "Action Btn", 0, actions[0] },
+std::array<MenuItem, 10> menu{ { { 0, "LFO Mode", 1 },{ 1, "Noise Mode" },{ 2, "Action CV", 0, actions[0] },{ 3, "Action Btn", 0, actions[0] },
 { 4, "Autosave", 0, OffOnOpts[0] },{ 5, "Init All" },{ 6, "Save Settings" },{ 7, "Load Settings" },{ 8, "CV Calibration", 0, "0" },{ 9, "Reverse Encoder", 0, OffOnOpts[0] } } };
 
 class SetupMenu {
