@@ -1,40 +1,6 @@
-EESchema Schematic File Version 2
-LIBS:Alex-KiCad-Misc
-LIBS:power
-LIBS:device
-LIBS:switches
-LIBS:relays
-LIBS:motors
-LIBS:transistors
-LIBS:conn
-LIBS:linear
-LIBS:regul
-LIBS:74xx
-LIBS:cmos4000
-LIBS:adc-dac
-LIBS:memory
-LIBS:xilinx
-LIBS:microcontrollers
-LIBS:dsp
-LIBS:microchip
-LIBS:analog_switches
-LIBS:motorola
-LIBS:texas
-LIBS:intel
-LIBS:audio
-LIBS:interface
-LIBS:digital-audio
-LIBS:philips
-LIBS:display
-LIBS:cypress
-LIBS:siliconi
-LIBS:opto
-LIBS:atmel
-LIBS:contrib
-LIBS:valves
-LIBS:teensy
+EESchema Schematic File Version 4
 LIBS:PlayDice-cache
-EELAYER 25 0
+EELAYER 26 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
@@ -49,7 +15,7 @@ Comment3 ""
 Comment4 ""
 $EndDescr
 $Comp
-L Teensy3.2 Teensy1
+L teensy:Teensy3.2 Teensy1
 U 1 1 5A99E489
 P 5750 3650
 F 0 "Teensy1" H 5750 5150 60  0000 C CNN
@@ -60,7 +26,7 @@ F 3 "" H 5750 2850 60  0000 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L POT Tempo1
+L PlayDice-rescue:POT Tempo1
 U 1 1 5A99E620
 P 9900 3800
 F 0 "Tempo1" V 9725 3800 50  0000 C CNN
@@ -71,7 +37,7 @@ F 3 "" H 9900 3800 50  0001 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L GND #PWR01
+L power:GND #PWR01
 U 1 1 5A99E6E6
 P 9900 3950
 F 0 "#PWR01" H 9900 3700 50  0001 C CNN
@@ -82,7 +48,7 @@ F 3 "" H 9900 3950 50  0001 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L +5V #PWR02
+L power:+5V #PWR02
 U 1 1 5A99E716
 P 4350 2850
 F 0 "#PWR02" H 4350 2700 50  0001 C CNN
@@ -93,7 +59,7 @@ F 3 "" H 4350 2850 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L GND #PWR03
+L power:GND #PWR03
 U 1 1 5A99E75A
 P 6750 5150
 F 0 "#PWR03" H 6750 4900 50  0001 C CNN
@@ -104,7 +70,7 @@ F 3 "" H 6750 5150 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3.3V #PWR04
+L power:+3.3V #PWR04
 U 1 1 5A9AB0CA
 P 9900 3650
 F 0 "#PWR04" H 9900 3500 50  0001 C CNN
@@ -115,7 +81,7 @@ F 3 "" H 9900 3650 50  0001 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L +3.3V #PWR05
+L power:+3.3V #PWR05
 U 1 1 5A9AB341
 P 4350 2650
 F 0 "#PWR05" H 4350 2500 50  0001 C CNN
@@ -126,7 +92,7 @@ F 3 "" H 4350 2650 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L GND #PWR06
+L power:GND #PWR06
 U 1 1 5A9AB3C0
 P 7850 3650
 F 0 "#PWR06" H 7850 3400 50  0001 C CNN
@@ -137,7 +103,7 @@ F 3 "" H 7850 3650 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L TL072 U3
+L linear:TL072 U3
 U 2 1 5AB2E395
 P 8250 2850
 F 0 "U3" H 8250 3050 50  0000 L CNN
@@ -148,7 +114,7 @@ F 3 "" H 8250 2850 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L R R6
+L Device:R R6
 U 1 1 5AB2E4E6
 P 7850 3500
 F 0 "R6" V 7930 3500 50  0000 C CNN
@@ -159,7 +125,7 @@ F 3 "" H 7850 3500 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L R R8
+L Device:R R8
 U 1 1 5AB2E565
 P 8400 3350
 F 0 "R8" V 8480 3350 50  0000 C CNN
@@ -170,7 +136,7 @@ F 3 "" H 8400 3350 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L GND #PWR07
+L power:GND #PWR07
 U 1 1 5B3F8B41
 P 6600 1750
 F 0 "#PWR07" H 6600 1500 50  0001 C CNN
@@ -181,7 +147,7 @@ F 3 "" H 6600 1750 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3.3V #PWR08
+L power:+3.3V #PWR08
 U 1 1 5B3F8D73
 P 6700 2050
 F 0 "#PWR08" H 6700 1900 50  0001 C CNN
@@ -192,7 +158,7 @@ F 3 "" H 6700 2050 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L OLED J4
+L PlayDice-rescue:OLED J4
 U 1 1 5B3FAA95
 P 7000 1350
 F 0 "J4" H 6500 1350 50  0000 C CNN
@@ -203,7 +169,7 @@ F 3 "" V 6900 1350 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L D D2
+L Device:D D2
 U 1 1 5B3FC835
 P 3700 3050
 F 0 "D2" H 3700 3150 50  0000 C CNN
@@ -214,7 +180,7 @@ F 3 "" H 3700 3050 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L D D1
+L Device:D D1
 U 1 1 5B3FC86C
 P 3700 2650
 F 0 "D1" H 3700 2750 50  0000 C CNN
@@ -225,7 +191,7 @@ F 3 "" H 3700 2650 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L VCC #PWR09
+L power:VCC #PWR09
 U 1 1 5B3FD712
 P 3850 2250
 F 0 "#PWR09" H 3850 2100 50  0001 C CNN
@@ -236,7 +202,7 @@ F 3 "" H 3850 2250 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L VEE #PWR010
+L power:VEE #PWR010
 U 1 1 5B3FD9D0
 P 3850 3500
 F 0 "#PWR010" H 3850 3350 50  0001 C CNN
@@ -247,7 +213,7 @@ F 3 "" H 3850 3500 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L CP C2
+L Device:CP C2
 U 1 1 5B3FDA78
 P 3300 2300
 F 0 "C2" H 3325 2400 50  0000 L CNN
@@ -258,7 +224,7 @@ F 3 "" H 3300 2300 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L CP C3
+L Device:CP C3
 U 1 1 5B3FDAD7
 P 3300 3350
 F 0 "C3" H 3325 3450 50  0000 L CNN
@@ -269,7 +235,7 @@ F 3 "" H 3300 3350 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L GND #PWR011
+L power:GND #PWR011
 U 1 1 5B3FDD0F
 P 2650 2850
 F 0 "#PWR011" H 2650 2600 50  0001 C CNN
@@ -280,7 +246,7 @@ F 3 "" H 2650 2850 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L VCC #PWR012
+L power:VCC #PWR012
 U 1 1 5B3FDE28
 P 2900 4200
 F 0 "#PWR012" H 2900 4050 50  0001 C CNN
@@ -291,7 +257,7 @@ F 3 "" H 2900 4200 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L +5V #PWR013
+L power:+5V #PWR013
 U 1 1 5B3FE23A
 P 3750 4200
 F 0 "#PWR013" H 3750 4050 50  0001 C CNN
@@ -302,7 +268,7 @@ F 3 "" H 3750 4200 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L GND #PWR014
+L power:GND #PWR014
 U 1 1 5B3FE4FC
 P 3350 4650
 F 0 "#PWR014" H 3350 4400 50  0001 C CNN
@@ -313,7 +279,7 @@ F 3 "" H 3350 4650 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L CP C4
+L Device:CP C4
 U 1 1 5B3FE52C
 P 3700 4450
 F 0 "C4" H 3725 4550 50  0000 L CNN
@@ -324,7 +290,7 @@ F 3 "" H 3700 4450 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L CP C1
+L Device:CP C1
 U 1 1 5B3FE5A3
 P 3000 4450
 F 0 "C1" H 3025 4550 50  0000 L CNN
@@ -335,7 +301,7 @@ F 3 "" H 3000 4450 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR015
+L power:GND #PWR015
 U 1 1 5B423678
 P 8600 5050
 F 0 "#PWR015" H 8600 4800 50  0001 C CNN
@@ -346,7 +312,7 @@ F 3 "" H 8600 5050 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L Rotary_Encoder_Switch Encoder1
+L PlayDice-rescue:Rotary_Encoder_Switch Encoder1
 U 1 1 5B42372D
 P 9250 4750
 F 0 "Encoder1" H 9250 5010 50  0000 C CNN
@@ -357,7 +323,7 @@ F 3 "" H 9250 5010 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L GND #PWR016
+L power:GND #PWR016
 U 1 1 5B423A78
 P 9150 5050
 F 0 "#PWR016" H 9150 4800 50  0001 C CNN
@@ -368,7 +334,7 @@ F 3 "" H 9150 5050 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR017
+L power:GND #PWR017
 U 1 1 5B423C16
 P 9250 4100
 F 0 "#PWR017" H 9250 3850 50  0001 C CNN
@@ -379,7 +345,7 @@ F 3 "" H 9250 4100 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L R R5
+L Device:R R5
 U 1 1 5B425CF4
 P 7850 2100
 F 0 "R5" V 7930 2100 50  0000 C CNN
@@ -390,7 +356,7 @@ F 3 "" H 7850 2100 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L R R7
+L Device:R R7
 U 1 1 5B425CFA
 P 8400 1950
 F 0 "R7" V 8480 1950 50  0000 C CNN
@@ -401,7 +367,7 @@ F 3 "" H 8400 1950 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L TL072 U3
+L linear:TL072 U3
 U 1 1 5B425D27
 P 8250 1450
 F 0 "U3" H 8250 1650 50  0000 L CNN
@@ -412,7 +378,7 @@ F 3 "" H 8250 1450 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR018
+L power:GND #PWR018
 U 1 1 5B425ECA
 P 7850 2250
 F 0 "#PWR018" H 7850 2000 50  0001 C CNN
@@ -423,7 +389,7 @@ F 3 "" H 7850 2250 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Audio-Jack-2_Switch J5
+L conn:Audio-Jack-2_Switch J5
 U 1 1 5B42657F
 P 9300 1450
 F 0 "J5" H 9250 1625 50  0000 C CNN
@@ -434,7 +400,7 @@ F 3 "" H 9550 1550 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L GND #PWR019
+L power:GND #PWR019
 U 1 1 5B42676A
 P 9100 1550
 F 0 "#PWR019" H 9100 1300 50  0001 C CNN
@@ -445,7 +411,7 @@ F 3 "" H 9100 1550 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Audio-Jack-2_Switch J6
+L conn:Audio-Jack-2_Switch J6
 U 1 1 5B4267EA
 P 9300 2850
 F 0 "J6" H 9250 3025 50  0000 C CNN
@@ -456,7 +422,7 @@ F 3 "" H 9550 2950 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L GND #PWR020
+L power:GND #PWR020
 U 1 1 5B4267F0
 P 9100 2950
 F 0 "#PWR020" H 9100 2700 50  0001 C CNN
@@ -495,7 +461,7 @@ CV
 Text Label 7250 3150 2    60   ~ 0
 CV
 $Comp
-L Audio-Jack-2_Switch J1
+L conn:Audio-Jack-2_Switch J1
 U 1 1 5B42CA74
 P 2750 1200
 F 0 "J1" H 2700 1375 50  0000 C CNN
@@ -506,7 +472,7 @@ F 3 "" H 3000 1300 50  0001 C CNN
 	1    0    0    1   
 $EndComp
 $Comp
-L R R1
+L Device:R R1
 U 1 1 5B42CBFE
 P 3300 1200
 F 0 "R1" V 3380 1200 50  0000 C CNN
@@ -517,7 +483,7 @@ F 3 "" H 3300 1200 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L R R2
+L Device:R R2
 U 1 1 5B42CED2
 P 3500 1450
 F 0 "R2" V 3580 1450 50  0000 C CNN
@@ -528,7 +494,7 @@ F 3 "" H 3500 1450 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR021
+L power:GND #PWR021
 U 1 1 5B42D1E5
 P 3500 1650
 F 0 "#PWR021" H 3500 1400 50  0001 C CNN
@@ -543,7 +509,7 @@ CLOCK
 Text Label 7250 2950 2    60   ~ 0
 CLOCK
 $Comp
-L Audio-Jack-2_Switch J3
+L conn:Audio-Jack-2_Switch J3
 U 1 1 5B42F24D
 P 4700 1200
 F 0 "J3" H 4650 1375 50  0000 C CNN
@@ -554,7 +520,7 @@ F 3 "" H 4950 1300 50  0001 C CNN
 	1    0    0    1   
 $EndComp
 $Comp
-L R R3
+L Device:R R3
 U 1 1 5B42F253
 P 5250 1200
 F 0 "R3" V 5330 1200 50  0000 C CNN
@@ -565,7 +531,7 @@ F 3 "" H 5250 1200 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L R R4
+L Device:R R4
 U 1 1 5B42F25B
 P 5450 1450
 F 0 "R4" V 5530 1450 50  0000 C CNN
@@ -576,7 +542,7 @@ F 3 "" H 5450 1450 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR022
+L power:GND #PWR022
 U 1 1 5B42F267
 P 5450 1650
 F 0 "#PWR022" H 5450 1400 50  0001 C CNN
@@ -603,7 +569,7 @@ ENC_3
 Text Label 9150 4400 1    60   ~ 0
 ENC_3
 $Comp
-L Eurorack_10_pin_power J2
+L PlayDice-rescue:Eurorack_10_pin_power J2
 U 1 1 5B44E65B
 P 3350 2850
 F 0 "J2" H 3400 3150 50  0000 C CNN
@@ -614,7 +580,7 @@ F 3 "" H 3350 2850 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L LM1117-5.0 U1
+L regul:LM1117-5.0 U1
 U 1 1 5B44F956
 P 3350 4200
 F 0 "U1" H 3200 4325 50  0000 C CNN
@@ -637,7 +603,7 @@ Wire Wire Line
 Wire Wire Line
 	7650 2750 7950 2750
 Wire Wire Line
-	8550 2850 9100 2850
+	8550 2850 8700 2850
 Wire Wire Line
 	8700 2850 8700 3350
 Wire Wire Line
@@ -666,9 +632,9 @@ Wire Wire Line
 Wire Wire Line
 	6600 1550 6600 1750
 Wire Wire Line
-	3850 2250 3850 2650
+	3850 2250 3850 2300
 Wire Wire Line
-	3850 3050 3850 3500
+	3850 3050 3850 3350
 Wire Wire Line
 	3450 3350 3850 3350
 Connection ~ 3850 3350
@@ -678,26 +644,26 @@ Connection ~ 3850 2300
 Wire Wire Line
 	3150 2300 2800 2300
 Wire Wire Line
-	2800 2300 2800 3350
+	2800 2300 2800 2850
 Wire Wire Line
 	2800 3350 3150 3350
 Wire Wire Line
-	2650 2850 3550 2850
+	2650 2850 2800 2850
 Connection ~ 2800 2850
 Wire Wire Line
-	2900 4200 3050 4200
+	2900 4200 3000 4200
 Wire Wire Line
 	3000 4300 3000 4200
 Connection ~ 3000 4200
 Wire Wire Line
-	3650 4200 3750 4200
+	3650 4200 3700 4200
 Wire Wire Line
 	3700 4300 3700 4200
 Connection ~ 3700 4200
 Wire Wire Line
-	3000 4600 3700 4600
+	3000 4600 3350 4600
 Wire Wire Line
-	3350 4500 3350 4650
+	3350 4500 3350 4600
 Connection ~ 3350 4600
 Wire Wire Line
 	8600 5050 8500 5050
@@ -720,7 +686,7 @@ Wire Wire Line
 Wire Wire Line
 	8150 1100 8150 1150
 Wire Wire Line
-	8550 1450 9100 1450
+	8550 1450 8700 1450
 Wire Wire Line
 	8700 1450 8700 1950
 Wire Wire Line
@@ -751,14 +717,14 @@ Wire Wire Line
 Wire Wire Line
 	6800 1550 6800 1700
 Wire Wire Line
-	3450 1200 3550 1200
+	3450 1200 3500 1200
 Wire Wire Line
 	3500 1300 3500 1200
 Connection ~ 3500 1200
 Wire Wire Line
 	3850 1600 3850 1400
 Wire Wire Line
-	2950 1600 3850 1600
+	2950 1600 3500 1600
 Connection ~ 3500 1600
 Wire Wire Line
 	3500 1600 3500 1650
@@ -767,14 +733,14 @@ Wire Wire Line
 Wire Wire Line
 	6750 2950 7250 2950
 Wire Wire Line
-	5400 1200 5500 1200
+	5400 1200 5450 1200
 Wire Wire Line
 	5450 1300 5450 1200
 Connection ~ 5450 1200
 Wire Wire Line
 	5800 1600 5800 1400
 Wire Wire Line
-	4900 1600 5800 1600
+	4900 1600 5450 1600
 Connection ~ 5450 1600
 Wire Wire Line
 	5450 1600 5450 1650
@@ -840,9 +806,9 @@ Connection ~ 3050 2850
 Wire Wire Line
 	3050 3050 3550 3050
 Wire Wire Line
-	3050 2750 3050 2950
+	3050 2750 3050 2850
 $Comp
-L VEE #PWR023
+L power:VEE #PWR023
 U 1 1 5B4591D4
 P 8150 1750
 F 0 "#PWR023" H 8150 1600 50  0001 C CNN
@@ -853,7 +819,7 @@ F 3 "" H 8150 1750 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L VCC #PWR024
+L power:VCC #PWR024
 U 1 1 5B4592C7
 P 8150 1100
 F 0 "#PWR024" H 8150 950 50  0001 C CNN
@@ -864,7 +830,7 @@ F 3 "" H 8150 1100 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L VCC #PWR025
+L power:VCC #PWR025
 U 1 1 5B464DA9
 P 8150 2500
 F 0 "#PWR025" H 8150 2350 50  0001 C CNN
@@ -875,7 +841,7 @@ F 3 "" H 8150 2500 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L VEE #PWR026
+L power:VEE #PWR026
 U 1 1 5B464E37
 P 8150 3150
 F 0 "#PWR026" H 8150 3000 50  0001 C CNN
@@ -886,7 +852,7 @@ F 3 "" H 8150 3150 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L GND #PWR027
+L power:GND #PWR027
 U 1 1 5B467D2B
 P 8600 4750
 F 0 "#PWR027" H 8600 4500 50  0001 C CNN
@@ -897,7 +863,7 @@ F 3 "" H 8600 4750 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L GND #PWR028
+L power:GND #PWR028
 U 1 1 5B467D96
 P 8600 4450
 F 0 "#PWR028" H 8600 4200 50  0001 C CNN
@@ -908,7 +874,7 @@ F 3 "" H 8600 4450 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L GND #PWR029
+L power:GND #PWR029
 U 1 1 5B467E01
 P 8600 4150
 F 0 "#PWR029" H 8600 3900 50  0001 C CNN
@@ -919,7 +885,7 @@ F 3 "" H 8600 4150 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L GND #PWR030
+L power:GND #PWR030
 U 1 1 5B46803B
 P 6750 3750
 F 0 "#PWR030" H 6750 3500 50  0001 C CNN
@@ -930,7 +896,7 @@ F 3 "" H 6750 3750 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L MMBT3904 Q2
+L transistors:MMBT3904 Q2
 U 1 1 5B5326AD
 P 5700 1200
 F 0 "Q2" H 5900 1275 50  0000 L CNN
@@ -941,7 +907,7 @@ F 3 "" H 5700 1200 50  0001 L CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L MMBT3904 Q1
+L transistors:MMBT3904 Q1
 U 1 1 5B5328EC
 P 3750 1200
 F 0 "Q1" H 3950 1275 50  0000 L CNN
@@ -952,7 +918,7 @@ F 3 "" H 3750 1200 50  0001 L CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L MEC_Push_Switch Action1
+L PlayDice-rescue:MEC_Push_Switch Action1
 U 1 1 5B7990CD
 P 8300 4150
 F 0 "Action1" H 8300 4250 50  0000 C CNN
@@ -963,7 +929,7 @@ F 3 "" H 8300 4350 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L MEC_Push_Switch Lane1
+L PlayDice-rescue:MEC_Push_Switch Lane1
 U 1 1 5B79A837
 P 8300 4450
 F 0 "Lane1" H 8300 4550 50  0000 C CNN
@@ -974,7 +940,7 @@ F 3 "" H 8300 4650 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L MEC_Push_Switch Right1
+L PlayDice-rescue:MEC_Push_Switch Right1
 U 1 1 5B79A9AB
 P 8300 4750
 F 0 "Right1" H 8300 4850 50  0000 C CNN
@@ -985,7 +951,7 @@ F 3 "" H 8300 4950 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L MEC_Push_Switch Left1
+L PlayDice-rescue:MEC_Push_Switch Left1
 U 1 1 5B79AB65
 P 8300 5050
 F 0 "Left1" H 8300 5150 50  0000 C CNN
@@ -995,4 +961,36 @@ F 3 "" H 8300 5250 50  0001 C CNN
 	1    8300 5050
 	1    0    0    -1  
 $EndComp
+Wire Wire Line
+	3850 3350 3850 3500
+Wire Wire Line
+	3850 2300 3850 2650
+Wire Wire Line
+	2800 2850 2800 3350
+Wire Wire Line
+	2800 2850 3050 2850
+Wire Wire Line
+	3000 4200 3050 4200
+Wire Wire Line
+	3700 4200 3750 4200
+Wire Wire Line
+	3350 4600 3700 4600
+Wire Wire Line
+	3350 4600 3350 4650
+Wire Wire Line
+	8700 1450 9100 1450
+Wire Wire Line
+	8700 2850 9100 2850
+Wire Wire Line
+	3500 1200 3550 1200
+Wire Wire Line
+	3500 1600 3850 1600
+Wire Wire Line
+	5450 1200 5500 1200
+Wire Wire Line
+	5450 1600 5800 1600
+Wire Wire Line
+	3050 2850 3050 2950
+Wire Wire Line
+	3050 2850 3550 2850
 $EndSCHEMATC

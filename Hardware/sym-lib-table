@@ -1,0 +1,4 @@
+(sym_lib_table
+  (lib (name "PlayDice-rescue")(type "Legacy")(uri "${KIPRJMOD}/PlayDice-rescue.lib")(options "")(descr ""))
+  (lib (name "teensy")(type "Legacy")(uri "D:/docs/kiCad/teensy_library-master/teensy.lib")(options "")(descr ""))
+)
